@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantenedor de Candidatos</title>
+    
+    <!-- Google Fonts: Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js para visualizaciones -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- jsPDF para generación de reportes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- SheetJS para exportar a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* --- Variables de Diseño y Estilos Globales --- */
+        :root {
+            --primary-color: #003366; /* Azul Oscuro */
+            --secondary-color: #0055a4; /* Azul Claro */
+            --accent-color: #ffcc00; /* Amarillo/Dorado Chileno */
+            --light-gray: #f4f7f6;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --font-family: 'Roboto', sans-serif;
+            --critical-color: #d32f2f; /* Rojo para alertas */
+            --warning-color: #f57c00; /* Naranja para advertencias */
+            --success-color: #388e3c;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- Estilos para la aplicación principal --- */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* --- Sidebar de Navegación --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--secondary-color);
+            padding-bottom: 20px;
+        }
+
+        .sidebar-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .nav-menu a {
+            display: block;
+            color: var(--white);
+            text-decoration: none;
+            padding: 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background-color: var(--secondary-color);
+        }
+
+        /* --- Contenido Principal --- */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            background-color: var(--white);
+            padding: 15px 30px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .export-button {
+            background-color: var(--success-color);
+            color: var(--white);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .export-button:hover {
+            background-color: #2e7d32;
+        }
+
+        .content-area {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none; /* Ocultar todo por defecto */
+        }
+
+        .tab-content.active {
+            display: block; /* Mostrar la pestaña activa */
+        }
+
+        /* --- Estilos del Dashboard --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .kpi-card h3 {
+            margin: 0 0 10px;
+            color: var(--secondary-color);
+        }
+
+        .kpi-card .number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .chart-container {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .chart-container h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 10px;
+        }
+
+        /* --- NUEVAS CLASES PARA CONTROLAR LA ALTURA DE LOS GRÁFICOS DIRECTAMENTE EN EL CANVAS --- */
+        .canvas-small {
+            height: 220px !important; /* Altura para el gráfico de barras horizontal */
+            width: 100% !important;
+        }
+        .canvas-medium {
+            height: 300px !important; /* Altura para el gráfico de barras apiladas */
+            width: 100% !important;
+        }
+
+        /* --- Estilos de Búsqueda y Candidatos --- */
+        .search-filters {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-filters input, .search-filters select {
+            padding: 10px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-family: var(--font-family);
+        }
+        .search-filters button {
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        .search-filters button:hover {
+            background-color: var(--primary-color);
+        }
+
+        .candidates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .candidate-card {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .candidate-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        .candidate-card-header {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .candidate-card-body {
+            padding: 15px;
+        }
+        .candidate-name {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin: 0;
+        }
+        .candidate-party {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        .candidate-details {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        .candidate-details span {
+            text-align: center;
+        }
+        .candidate-details .label {
+            display: block;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .candidate-details .value {
+            color: var(--dark-gray);
+        }
+        
+        .candidate-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-edit, .btn-delete {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-edit {
+            background-color: var(--warning-color);
+            color: var(--white);
+        }
+        
+        .btn-edit:hover {
+            background-color: #e65100;
+        }
+        
+        .btn-delete {
+            background-color: var(--critical-color);
+            color: var(--white);
+        }
+        
+        .btn-delete:hover {
+            background-color: #b71c1c;
+        }
+
+        /* --- Modal para Crear/Editar Candidato --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: var(--white);
+            margin: 5% auto;
+            padding: 30px;
+            border: none;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: var(--dark-gray);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-header {
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--dark-gray);
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 85, 164, 0.2);
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn-primary, .btn-secondary {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            color: var(--white);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-color);
+        }
+        
+        .btn-secondary {
+            background-color: var(--medium-gray);
+            color: var(--dark-gray);
+        }
+        
+        .btn-secondary:hover {
+            background-color: #bdbdbd;
+        }
+        
+        /* --- ESTILOS PARA LAS NUEVAS SECCIONES --- */
+
+        /* Estilos para Análisis de Cargos */
+        .analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .analysis-table th, .analysis-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        .analysis-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+        .analysis-table tr.critical {
+            background-color: rgba(211, 47, 47, 0.1); /* Fondo rojo claro */
+        }
+        .analysis-table tr.critical td {
+            font-weight: 500;
+        }
+        .analysis-table tr.warning {
+            background-color: rgba(245, 124, 0, 0.1); /* Fondo naranja claro */
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+            color: var(--white);
+        }
+        .badge.critical { background-color: var(--critical-color); }
+        .badge.warning { background-color: var(--warning-color); }
+        .badge.success { background-color: var(--success-color); }
+
+        /* Estilos para carga de datos */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.2em;
+            color: var(--secondary-color);
+        }
+        .error-message {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid var(--critical-color);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            color: var(--critical-color);
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+        }
+
+        .detail-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--medium-gray);
+            padding-bottom: 10px;
+        }
+
+        .application-item, .document-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: var(--white);
+            border-radius: 5px;
+        }
+
+        .evaluation-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        /* Skeleton loading styles */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-card {
+            height: 200px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* Pagination styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            background-color: var(--white);
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border-color: var(--secondary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Connection status indicator */
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: var(--white);
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+        }
+
+        .connection-status.online {
+            background-color: var(--success-color);
+        }
+
+        .connection-status.offline {
+            background-color: var(--critical-color);
+        }
+
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: var(--white);
+            font-weight: 500;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background-color: var(--success-color);
+        }
+
+        .toast.error {
+            background-color: var(--critical-color);
+        }
+
+        .toast.warning {
+            background-color: var(--warning-color);
+        }
+        
+        /* Estilos para vista de tabla */
+        .table-container {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .table-header {
+            padding: 15px 20px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-body {
+            overflow-x: auto;
+        }
+        
+        .candidates-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .candidates-table th, .candidates-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .candidates-table th {
+            background-color: var(--light-gray);
+            font-weight: 500;
+        }
+        
+        .candidates-table tr:hover {
+            background-color: rgba(0, 85, 164, 0.05);
+        }
+        
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .view-btn {
+            padding: 8px 12px;
+            background-color: var(--medium-gray);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .view-btn.active {
+            background-color: var(--secondary-color);
+            color: var(--white);
+        }
+        
+        .table-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .action-btn {
+            padding: 5px 8px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .action-btn.edit {
+            background-color: var(--warning-color);
+            color: var(--white);
+        }
+        
+        .action-btn.delete {
+            background-color: var(--critical-color);
+            color: var(--white);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor de la Aplicación Principal -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar de Navegación -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Mantenedor de Candidatos</h1>
+                <p>Gobierno 2026</p>
+            </div>
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-link active" onclick="showTab(event, 'dashboard')">📊 Dashboard</a>
+                <a href="#candidates" class="nav-link" onclick="showTab(event, 'candidates')">👥 Candidatos</a>
+                <a href="#parties" class="nav-link" onclick="showTab(event, 'parties')">🏛️ Partidos Políticos</a>
+            </nav>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <div class="top-bar">
+                <h2 id="pageTitle">Panel de Control</h2>
+                <div class="user-info">
+                    <button class="export-button" onclick="exportToExcel()">📊 Exportar a Excel</button>
+                    <button class="export-button" onclick="exportToPDF()">📄 Exportar a PDF</button>
+                </div>
+            </div>
+            
+            <div class="content-area">
+
+                <!-- PESTAÑA: DASHBOARD -->
+                <div id="dashboard" class="tab-content active">
+                    <div class="dashboard-grid">
+                        <div class="kpi-card">
+                            <h3>Total Candidatos</h3>
+                            <div class="number" id="totalCandidates">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Total Partidos</h3>
+                            <div class="number" id="totalParties">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Candidatos Activos</h3>
+                            <div class="number" id="activeCandidates">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Participación Partidos</h3>
+                            <div class="number" id="partiesCount">-</div>
+                        </div>
+                    </div>
+
+                    <!-- GRÁFICO 1: BARRAS HORIZONTALES CON CLASE EN EL CANVAS -->
+                    <div class="chart-container">
+                        <h2>Distribución de Candidatos por Partido Político</h2>
+                        <canvas id="governanceChart" class="canvas-small"></canvas>
+                    </div>
+
+                    <!-- GRÁFICO 2: BARRAS APILADAS CON CLASE EN EL CANVAS -->
+                    <div class="chart-container">
+                        <h2>Distribución por Región</h2>
+                        <canvas id="progressChart" class="canvas-medium"></canvas>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: CANDIDATOS -->
+                <div id="candidates" class="tab-content">
+                    <div class="search-filters">
+                        <input type="text" id="searchInput" placeholder="Buscar por nombre o RUT..." style="flex-grow: 1;">
+                        <select id="partyFilter">
+                            <option value="">Todos los Partidos</option>
+                        </select>
+                        <select id="statusFilter">
+                            <option value="">Todos los Estados</option>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                            <option value="pendiente">Pendiente</option>
+                        </select>
+                        <button onclick="applyFilters()">Aplicar Filtros</button>
+                        <button onclick="openCreateModal()" style="background-color: var(--success-color);">➕ Nuevo Candidato</button>
+                    </div>
+
+                    <div class="view-toggle">
+                        <button class="view-btn active" onclick="toggleView('grid')">
+                            <span>📱</span> Vista de Tarjetas
+                        </button>
+                        <button class="view-btn" onclick="toggleView('table')">
+                            <span>📋</span> Vista de Tabla
+                        </button>
+                    </div>
+
+                    <div id="candidatesLoading" class="loading">Cargando candidatos...</div>
+                    <div class="candidates-grid" id="candidatesGrid" style="display: none;">
+                        <!-- Las tarjetas de candidatos se generarán dinámicamente -->
+                    </div>
+                    
+                    <div class="table-container" id="candidatesTableContainer" style="display: none;">
+                        <div class="table-body">
+                            <table class="candidates-table" id="candidatesTable">
+                                <thead>
+                                    <tr>
+                                        <th>RUT</th>
+                                        <th>Nombre Completo</th>
+                                        <th>Partido Político</th>
+                                        <th>Email</th>
+                                        <th>Teléfono</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="candidatesTableBody">
+                                    <!-- Las filas de la tabla se generarán dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="pagination" id="candidatesPagination" style="display: none;">
+                        <!-- Paginación se generará dinámicamente -->
+                    </div>
+                    <div id="candidatesError" class="error-message" style="display: none;">
+                        Error al cargar los candidatos. Por favor, intente nuevamente.
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: PARTIDOS POLÍTICOS -->
+                <div id="parties" class="tab-content">
+                    <div class="search-filters">
+                        <input type="text" id="partySearchInput" placeholder="Buscar por nombre o sigla..." style="flex-grow: 1;">
+                        <button onclick="applyPartyFilters()">Aplicar Filtros</button>
+                        <button onclick="openCreatePartyModal()" style="background-color: var(--success-color);">➕ Nuevo Partido</button>
+                    </div>
+
+                    <div id="partiesLoading" class="loading">Cargando partidos...</div>
+                    <div class="table-container" id="partiesTableContainer" style="display: none;">
+                        <div class="table-body">
+                            <table class="candidates-table" id="partiesTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Sigla</th>
+                                        <th>Descripción</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="partiesTableBody">
+                                    <!-- Las filas de la tabla se generarán dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="pagination" id="partiesPagination" style="display: none;">
+                        <!-- Paginación se generará dinámicamente -->
+                    </div>
+                    <div id="partiesError" class="error-message" style="display: none;">
+                        Error al cargar los partidos. Por favor, intente nuevamente.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Crear/Editar Candidato -->
+    <div id="candidateModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('candidateModal')">&times;</span>
+            <div class="modal-header">
+                <h2 id="modalTitle">Nuevo Candidato</h2>
+            </div>
+            <form id="candidateForm">
+                <div class="form-group">
+                    <label for="candidateRut">RUT</label>
+                    <input type="text" id="candidateRut" name="rut" required placeholder="Ej: 12.345.678-9">
+                </div>
+                <div class="form-group">
+                    <label for="candidateNombres">Nombres</label>
+                    <input type="text" id="candidateNombres" name="nombres" required placeholder="Nombres del candidato">
+                </div>
+                <div class="form-group">
+                    <label for="candidateApellidoPaterno">Apellido Paterno</label>
+                    <input type="text" id="candidateApellidoPaterno" name="apellido_paterno" required placeholder="Apellido paterno">
+                </div>
+                <div class="form-group">
+                    <label for="candidateApellidoMaterno">Apellido Materno</label>
+                    <input type="text" id="candidateApellidoMaterno" name="apellido_materno" placeholder="Apellido materno">
+                </div>
+                <div class="form-group">
+                    <label for="candidateEmail">Email</label>
+                    <input type="email" id="candidateEmail" name="contacto_email" required placeholder="correo@ejemplo.cl">
+                </div>
+                <div class="form-group">
+                    <label for="candidatePhone">Teléfono</label>
+                    <input type="tel" id="candidatePhone" name="contacto_telefono" placeholder="+56 9 1234 5678">
+                </div>
+                <div class="form-group">
+                    <label for="candidateParty">Partido Político</label>
+                    <select id="candidateParty" name="id_partido" required>
+                        <option value="">Seleccione un partido</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="candidateStatus">Estado</label>
+                    <select id="candidateStatus" name="estado" required>
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                        <option value="pendiente">Pendiente</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('candidateModal')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal para Crear/Editar Partido -->
+    <div id="partyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('partyModal')">&times;</span>
+            <div class="modal-header">
+                <h2 id="partyModalTitle">Nuevo Partido Político</h2>
+            </div>
+            <form id="partyForm">
+                <div class="form-group">
+                    <label for="partyName">Nombre del Partido</label>
+                    <input type="text" id="partyName" name="nombre_partido" required placeholder="Nombre completo del partido">
+                </div>
+                <div class="form-group">
+                    <label for="partySigla">Sigla</label>
+                    <input type="text" id="partySigla" name="sigla" required placeholder="Sigla (ej: PS, RN, etc.)">
+                </div>
+                <div class="form-group">
+                    <label for="partyDescription">Descripción</label>
+                    <textarea id="partyDescription" name="descripcion" rows="4" placeholder="Descripción del partido político"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('partyModal')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Connection Status Indicator -->
+    <div id="connectionStatus" class="connection-status">
+        <span id="connectionStatusText">Conectado</span>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+        
+        // Inicializar cliente de Supabase
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Variables globales para las instancias de los gráficos
+        let governanceChartInstance = null;
+        let progressChartInstance = null;
+        
+        // Sistema de gestión de estado centralizado
+        const AppState = {
+            // Datos
+            candidates: [],
+            parties: [],
+            
+            // Estado de la aplicación
+            currentTab: 'dashboard',
+            currentView: 'grid', // 'grid' o 'table'
+            
+            // Configuración de paginación
+            pagination: {
+                candidates: {
+                    page: 1,
+                    pageSize: 12,
+                    totalPages: 0,
+                    totalItems: 0
+                },
+                parties: {
+                    page: 1,
+                    pageSize: 10,
+                    totalPages: 0,
+                    totalItems: 0
+                }
+            },
+            
+            // Configuración de filtros
+            filters: {
+                candidates: {
+                    searchTerm: '',
+                    partyId: '',
+                    status: ''
+                },
+                parties: {
+                    searchTerm: ''
+                }
+            },
+            
+            // Cache
+            cache: {
+                candidates: { data: null, timestamp: null, TTL: 300000 }, // 5 minutos
+                parties: { data: null, timestamp: null, TTL: 600000 }     // 10 minutos
+            },
+            
+            // Métodos para obtener y establecer datos
+            getCandidates: function() { return this.candidates; },
+            setCandidates: function(data) { this.candidates = data; },
+            
+            getParties: function() { return this.parties; },
+            setParties: function(data) { this.parties = data; },
+            
+            getCurrentTab: function() { return this.currentTab; },
+            setCurrentTab: function(tab) { this.currentTab = tab; },
+            
+            getCurrentView: function() { return this.currentView; },
+            setCurrentView: function(view) { this.currentView = view; },
+            
+            // Métodos para verificar si el cache es válido
+            isCacheValid: function(cacheKey) {
+                const cache = this.cache[cacheKey];
+                if (!cache.data || !cache.timestamp) return false;
+                return (Date.now() - cache.timestamp) < cache.TTL;
+            },
+            
+            // Métodos para actualizar el cache
+            updateCache: function(cacheKey, data) {
+                this.cache[cacheKey] = {
+                    data: data,
+                    timestamp: Date.now(),
+                    TTL: this.cache[cacheKey].TTL
+                };
+            },
+            
+            // Método para obtener datos del cache o cargarlos si es necesario
+            async getDataWithCache(cacheKey, loadFunction) {
+                if (this.isCacheValid(cacheKey)) {
+                    console.log(`Usando datos cacheados para ${cacheKey}`);
+                    return this.cache[cacheKey].data;
+                } else {
+                    console.log(`Cargando nuevos datos para ${cacheKey}`);
+                    const data = await loadFunction();
+                    this.updateCache(cacheKey, data);
+                    return data;
+                }
+            }
+        };
+
+        // Variables para debounce
+        let searchTimeout = null;
+        
+        // Variables para manejo de conexión
+        let isOnline = navigator.onLine;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
+
+        // --- Funciones de Utilidad ---
+        
+        // Función para validar datos
+        function validateData(data, type) {
+            if (!data) return null;
+            
+            switch(type) {
+                case 'number':
+                    return isNaN(data) ? 0 : parseFloat(data);
+                case 'string':
+                    return typeof data === 'string' ? data : String(data);
+                case 'array':
+                    return Array.isArray(data) ? data : [];
+                case 'object':
+                    return typeof data === 'object' && data !== null ? data : {};
+                default:
+                    return data;
+            }
+        }
+        
+        // Función para mostrar notificaciones toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Función para manejar errores de forma centralizada
+        function handleError(error, context = 'general') {
+            console.error(`Error en ${context}:`, error);
+            
+            // Mostrar notificación de error
+            showToast(`Error: ${error.message || 'Ha ocurrido un error inesperado'}`, 'error');
+            
+            // Actualizar indicador de conexión si es un error de red
+            if (error.message && error.message.includes('fetch')) {
+                updateConnectionStatus(false);
+            }
+        }
+        
+        // Función para reintentar operaciones con exponential backoff
+        async function fetchWithRetry(fn, retries = MAX_RETRIES) {
+            for(let i = 0; i < retries; i++) {
+                try {
+                    return await fn();
+                } catch(e) {
+                    console.error(`Intento ${i+1} fallido:`, e);
+                    if(i === retries-1) throw e;
+                    
+                    // Exponential backoff: esperar 1s, 2s, 4s, etc.
+                    const delay = 1000 * Math.pow(2, i);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        // Función para actualizar el estado de la conexión
+        function updateConnectionStatus(online) {
+            isOnline = online;
+            const statusElement = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionStatusText');
+            
+            if (online) {
+                statusElement.className = 'connection-status online';
+                statusText.textContent = 'Conectado';
+                retryCount = 0;
+            } else {
+                statusElement.className = 'connection-status offline';
+                statusText.textContent = 'Desconectado';
+            }
+            
+            statusElement.style.display = 'block';
+            
+            // Ocultar el indicador después de 3 segundos
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Función para verificar la conexión
+        async function checkConnection() {
+            try {
+                const { data, error } = await supabaseClient.from('partidos_politicos').select('count', { count: 'exact', head: true });
+                if (error) throw error;
+                updateConnectionStatus(true);
+                return true;
+            } catch (error) {
+                updateConnectionStatus(false);
+                return false;
+            }
+        }
+        
+        // Función para aplicar debounce a una función
+        function debounce(func, wait) {
+            return function(...args) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // --- Funciones Principales ---
+        
+        // Verificar si hay una sesión activa al cargar la página
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Configurar listeners para eventos de conexión
+            window.addEventListener('online', () => updateConnectionStatus(true));
+            window.addEventListener('offline', () => updateConnectionStatus(false));
+            
+            // Verificar conexión inicial
+            await checkConnection();
+            
+            // Cargar datos iniciales
+            loadInitialData();
+        });
+
+        // --- Lógica de Pestañas y Gráficos ---
+        function showTab(event, tabName) {
+            var i, tabcontent, navlinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            navlinks = document.getElementsByClassName("nav-link");
+            for (i = 0; i < navlinks.length; i++) {
+                navlinks[i].classList.remove("active");
+            }
+
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+            
+            // Actualizar título de la página
+            const pageTitle = document.getElementById('pageTitle');
+            switch(tabName) {
+                case 'dashboard':
+                    pageTitle.textContent = 'Panel de Control';
+                    break;
+                case 'candidates':
+                    pageTitle.textContent = 'Mantenedor de Candidatos';
+                    break;
+                case 'parties':
+                    pageTitle.textContent = 'Mantenedor de Partidos Políticos';
+                    break;
+            }
+            
+            // Actualizar estado
+            AppState.setCurrentTab(tabName);
+
+            // Inicializar o redibujar gráficos según la pestaña activa
+            if (tabName === 'dashboard') {
+                if (!governanceChartInstance) initializeDashboard();
+                else { 
+                    governanceChartInstance.resize(); 
+                    progressChartInstance.resize(); 
+                }
+            } else if (tabName === 'candidates') {
+                loadCandidates(); // Siempre cargar candidatos al cambiar a esta pestaña
+            } else if (tabName === 'parties') {
+                loadParties(); // Siempre cargar partidos al cambiar a esta pestaña
+            }
+        }
+
+        // Función para cargar datos iniciales
+        async function loadInitialData() {
+            try {
+                console.log('Cargando datos iniciales...');
+                
+                // Verificar conexión antes de cargar datos
+                const isConnected = await checkConnection();
+                if (!isConnected) {
+                    throw new Error('No hay conexión a internet. Por favor, verifique su conexión e intente nuevamente.');
+                }
+                
+                // Cargar partidos políticos
+                console.log('Cargando partidos...');
+                const parties = await AppState.getDataWithCache('parties', async () => {
+                    const { data, error } = await fetchWithRetry(async () => {
+                        return await supabaseClient
+                            .from('partidos_politicos')
+                            .select('*');
+                    });
+                    
+                    if (error) throw error;
+                    return data;
+                });
+                
+                AppState.setParties(parties);
+                console.log('Partidos cargados:', parties.length);
+                
+                // Cargar candidatos
+                console.log('Cargando candidatos...');
+                const candidates = await AppState.getDataWithCache('candidates', async () => {
+                    const { data, error } = await fetchWithRetry(async () => {
+                        return await supabaseClient
+                            .from('candidatos')
+                            .select('*');
+                    });
+                    
+                    if (error) throw error;
+                    return data;
+                });
+                
+                AppState.setCandidates(candidates);
+                console.log('Candidatos cargados:', candidates.length);
+                
+                // Inicializar dashboard
+                initializeDashboard();
+                
+                // Actualizar filtros
+                updateFilters();
+                
+            } catch (error) {
+                console.error('Error al cargar datos iniciales:', error);
+                handleError(error, 'loadInitialData');
+                showError('dashboard', 'Error al cargar los datos. Por favor, recargue la página.');
+            }
+        }
+
+        // Función para inicializar el dashboard
+        function initializeDashboard() {
+            console.log('Inicializando dashboard...');
+
+            const candidates = AppState.getCandidates() || [];
+            const parties = AppState.getParties() || [];
+
+            // KPI: Total candidatos
+            document.getElementById('totalCandidates').textContent = candidates.length;
+
+            // KPI: Total partidos
+            document.getElementById('totalParties').textContent = parties.length;
+
+            // KPI: Candidatos activos
+            const activeCandidates = candidates.filter(c => c.estado === 'activo').length;
+            document.getElementById('activeCandidates').textContent = activeCandidates;
+
+            // KPI: Participación partidos
+            document.getElementById('partiesCount').textContent = `${parties.length} / ${parties.length}`;
+
+            initializeCharts();
+        }
+
+        function initializeCharts() {
+            console.log('Inicializando gráficos...');
+
+            if (governanceChartInstance) governanceChartInstance.destroy();
+            if (progressChartInstance) progressChartInstance.destroy();
+
+            /* ===============================
+            GRÁFICO 1: Candidatos por partido
+            =============================== */
+
+            const governanceCtx = document.getElementById('governanceChart').getContext('2d');
+
+            const parties = AppState.getParties() || [];
+            const candidates = AppState.getCandidates() || [];
+
+            const partyLabels = parties.map(p => p.nombre_partido);
+            const partyData = parties.map(
+                p => candidates.filter(c => c.id_partido === p.id_partido).length
+            );
+
+            governanceChartInstance = new Chart(governanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: partyLabels,
+                    datasets: [{
+                        data: partyData,
+                        label: 'Candidatos',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true }
+                    }
+                }
+            });
+
+            /* =====================================
+            GRÁFICO 2: Distribución por región
+            ===================================== */
+
+            const progressCtx = document.getElementById('progressChart').getContext('2d');
+
+            // Agrupar candidatos por región (simulado, ya que no hay campo región en los datos)
+            const regions = {
+                'Región Metropolitana': Math.round(candidates.length * 0.4),
+                'Región de Valparaíso': Math.round(candidates.length * 0.15),
+                'Región del Biobío': Math.round(candidates.length * 0.1),
+                'Región de Araucanía': Math.round(candidates.length * 0.08),
+                'Región de Antofagasta': Math.round(candidates.length * 0.07),
+                'Otras Regiones': Math.round(candidates.length * 0.2)
+            };
+
+            const labels = Object.keys(regions);
+            const data = Object.values(regions);
+
+            progressChartInstance = new Chart(progressCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Candidatos por Región',
+                        data,
+                        backgroundColor: 'rgba(0, 85, 164, 0.5)',
+                        borderColor: 'rgba(0, 85, 164, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        async function loadCandidates() {
+            const loading = document.getElementById('candidatesLoading');
+            const grid = document.getElementById('candidatesGrid');
+            const table = document.getElementById('candidatesTableContainer');
+            const paginationEl = document.getElementById('candidatesPagination');
+            const errorEl = document.getElementById('candidatesError');
+            const currentView = AppState.getCurrentView();
+
+            try {
+                loading.style.display = 'flex';
+                grid.style.display = 'none';
+                table.style.display = 'none';
+                errorEl.style.display = 'none';
+
+                const filters = AppState.filters.candidates;
+                const pagination = AppState.pagination.candidates;
+
+                let query = supabaseClient
+                    .from('candidatos')
+                    .select(`
+                        *,
+                        partidos_politicos(nombre_partido)
+                    `, { count: 'exact' });
+
+                if (filters.partyId) {
+                    query = query.eq('id_partido', filters.partyId);
+                }
+
+                if (filters.status) {
+                    query = query.eq('estado', filters.status);
+                }
+
+                if (filters.searchTerm) {
+                    query = query.or(
+                        `nombres.ilike.%${filters.searchTerm}%,apellido_paterno.ilike.%${filters.searchTerm}%,apellido_materno.ilike.%${filters.searchTerm}%,rut.ilike.%${filters.searchTerm}%`
+                    );
+                }
+
+                const from = (pagination.page - 1) * pagination.pageSize;
+                const to = from + pagination.pageSize - 1;
+                query = query.range(from, to);
+
+                const { data, count, error } = await query;
+                if (error) throw error;
+
+                pagination.totalItems = count;
+                pagination.totalPages = Math.ceil(count / pagination.pageSize);
+
+                if (currentView === 'grid') {
+                    // Vista de tarjetas
+                    grid.innerHTML = '';
+
+                    data.forEach(candidate => {
+                        const card = document.createElement('div');
+                        card.className = 'candidate-card';
+
+                        card.innerHTML = `
+                            <div class="candidate-card-header">
+                                <div>
+                                    <p class="candidate-party">
+                                        ${candidate.partidos_politicos?.nombre_partido || 'Sin partido'}
+                                    </p>
+                                    <p class="candidate-name">
+                                        ${candidate.nombres} ${candidate.apellido_paterno}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span class="badge ${candidate.estado === 'activo' ? 'success' : candidate.estado === 'inactivo' ? 'critical' : 'warning'}">
+                                        ${candidate.estado}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="candidate-card-body">
+                                <div class="candidate-details">
+                                    <span>
+                                        <span class="label">RUT</span>
+                                        <span class="value">${candidate.rut}</span>
+                                    </span>
+                                    <span>
+                                        <span class="label">Email</span>
+                                        <span class="value">${candidate.contacto_email}</span>
+                                    </span>
+                                </div>
+                                <div class="candidate-actions">
+                                    <button class="btn-edit" onclick="openEditModal(${candidate.id_candidato})">Editar</button>
+                                    <button class="btn-delete" onclick="deleteCandidate(${candidate.id_candidato})">Eliminar</button>
+                                </div>
+                            </div>
+                        `;
+
+                        grid.appendChild(card);
+                    });
+
+                    grid.style.display = 'grid';
+                } else {
+                    // Vista de tabla
+                    const tableBody = document.getElementById('candidatesTableBody');
+                    tableBody.innerHTML = '';
+
+                    data.forEach(candidate => {
+                        const row = document.createElement('tr');
+                        
+                        row.innerHTML = `
+                            <td>${candidate.rut}</td>
+                            <td>${candidate.nombres} ${candidate.apellido_paterno} ${candidate.apellido_materno || ''}</td>
+                            <td>${candidate.partidos_politicos?.nombre_partido || 'Sin partido'}</td>
+                            <td>${candidate.contacto_email}</td>
+                            <td>${candidate.contacto_telefono || 'No especificado'}</td>
+                            <td>
+                                <span class="badge ${candidate.estado === 'activo' ? 'success' : candidate.estado === 'inactivo' ? 'critical' : 'warning'}">
+                                    ${candidate.estado}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="action-btn edit" onclick="openEditModal(${candidate.id_candidato})">Editar</button>
+                                    <button class="action-btn delete" onclick="deleteCandidate(${candidate.id_candidato})">Eliminar</button>
+                                </div>
+                            </td>
+                        `;
+                        
+                        tableBody.appendChild(row);
+                    });
+
+                    table.style.display = 'block';
+                }
+
+                createPagination(pagination, 'candidates');
+
+                loading.style.display = 'none';
+                paginationEl.style.display = 'flex';
+
+            } catch (err) {
+                console.error(err);
+                loading.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.textContent = err.message;
+            }
+        }
+        
+        async function loadParties() {
+            const loading = document.getElementById('partiesLoading');
+            const table = document.getElementById('partiesTableContainer');
+            const paginationEl = document.getElementById('partiesPagination');
+            const errorEl = document.getElementById('partiesError');
+
+            try {
+                loading.style.display = 'flex';
+                table.style.display = 'none';
+                errorEl.style.display = 'none';
+
+                const filters = AppState.filters.parties;
+                const pagination = AppState.pagination.parties;
+
+                let query = supabaseClient
+                    .from('partidos_politicos')
+                    .select('*', { count: 'exact' });
+
+                if (filters.searchTerm) {
+                    query = query.or(
+                        `nombre_partido.ilike.%${filters.searchTerm}%,sigla.ilike.%${filters.searchTerm}%`
+                    );
+                }
+
+                const from = (pagination.page - 1) * pagination.pageSize;
+                const to = from + pagination.pageSize - 1;
+                query = query.range(from, to);
+
+                const { data, count, error } = await query;
+                if (error) throw error;
+
+                pagination.totalItems = count;
+                pagination.totalPages = Math.ceil(count / pagination.pageSize);
+
+                const tableBody = document.getElementById('partiesTableBody');
+                tableBody.innerHTML = '';
+
+                data.forEach(party => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${party.id_partido}</td>
+                        <td>${party.nombre_partido}</td>
+                        <td>${party.sigla}</td>
+                        <td>${party.descripcion || 'Sin descripción'}</td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="action-btn edit" onclick="openEditPartyModal(${party.id_partido})">Editar</button>
+                                <button class="action-btn delete" onclick="deleteParty(${party.id_partido})">Eliminar</button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+
+                createPagination(pagination, 'parties');
+
+                loading.style.display = 'none';
+                table.style.display = 'block';
+                paginationEl.style.display = 'flex';
+
+            } catch (err) {
+                console.error(err);
+                loading.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.textContent = err.message;
+            }
+        }
+
+        // Función para crear controles de paginación
+        function createPagination(pagination, type) {
+            const paginationElement = document.getElementById(`${type}Pagination`);
+            paginationElement.innerHTML = '';
+            
+            // Botón anterior
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Anterior';
+            prevButton.disabled = pagination.page === 1;
+            prevButton.onclick = () => {
+                pagination.page--;
+                if (type === 'candidates') {
+                    loadCandidates();
+                } else if (type === 'parties') {
+                    loadParties();
+                }
+            };
+            paginationElement.appendChild(prevButton);
+            
+            // Números de página
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, pagination.page - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.className = i === pagination.page ? 'active' : '';
+                pageButton.onclick = () => {
+                    pagination.page = i;
+                    if (type === 'candidates') {
+                        loadCandidates();
+                    } else if (type === 'parties') {
+                        loadParties();
+                    }
+                };
+                paginationElement.appendChild(pageButton);
+            }
+            
+            // Botón siguiente
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Siguiente';
+            nextButton.disabled = pagination.page === pagination.totalPages;
+            nextButton.onclick = () => {
+                pagination.page++;
+                if (type === 'candidates') {
+                    loadCandidates();
+                } else if (type === 'parties') {
+                    loadParties();
+                }
+            };
+            paginationElement.appendChild(nextButton);
+        }
+
+        // Función para alternar entre vista de tarjetas y tabla
+        function toggleView(view) {
+            const viewButtons = document.querySelectorAll('.view-btn');
+            viewButtons.forEach(btn => btn.classList.remove('active'));
+            
+            if (view === 'grid') {
+                viewButtons[0].classList.add('active');
+                AppState.setCurrentView('grid');
+            } else {
+                viewButtons[1].classList.add('active');
+                AppState.setCurrentView('table');
+            }
+            
+            // Recargar candidatos con la nueva vista
+            loadCandidates();
+        }
+
+        // Función para actualizar filtros
+        function updateFilters() {
+            // Actualizar filtro de partidos
+            const partyFilter = document.getElementById('partyFilter');
+            partyFilter.innerHTML = '<option value="">Todos los Partidos</option>';
+            
+            const parties = AppState.getParties();
+            parties.forEach(party => {
+                const option = document.createElement('option');
+                option.value = party.id_partido;
+                option.textContent = party.nombre_partido;
+                partyFilter.appendChild(option);
+            });
+            
+            // Actualizar filtro de partidos en el formulario de candidato
+            const candidatePartySelect = document.getElementById('candidateParty');
+            candidatePartySelect.innerHTML = '<option value="">Seleccione un partido</option>';
+            
+            parties.forEach(party => {
+                const option = document.createElement('option');
+                option.value = party.id_partido;
+                option.textContent = party.nombre_partido;
+                candidatePartySelect.appendChild(option);
+            });
+        }
+
+        // Función para aplicar filtros en la sección de candidatos
+        const applyFilters = debounce(async function() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const partyId = document.getElementById('partyFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            console.log('Aplicando filtros:', { searchTerm, partyId, status });
+            
+            // Actualizar filtros en el estado
+            AppState.filters.candidates = {
+                searchTerm,
+                partyId,
+                status
+            };
+            
+            // Resetear paginación
+            AppState.pagination.candidates.page = 1;
+            
+            // Recargar candidatos con filtros
+            loadCandidates();
+        }, 300);
+        
+        // Función para aplicar filtros en la sección de partidos
+        const applyPartyFilters = debounce(async function() {
+            const searchTerm = document.getElementById('partySearchInput').value.toLowerCase();
+            
+            console.log('Aplicando filtros de partidos:', { searchTerm });
+            
+            // Actualizar filtros en el estado
+            AppState.filters.parties = {
+                searchTerm
+            };
+            
+            // Resetear paginación
+            AppState.pagination.parties.page = 1;
+            
+            // Recargar partidos con filtros
+            loadParties();
+        }, 300);
+
+        // --- Lógica del Modal de Candidatos ---
+        function openCreateModal() {
+            const modal = document.getElementById('candidateModal');
+            const form = document.getElementById('candidateForm');
+            const title = document.getElementById('modalTitle');
+            
+            // Limpiar formulario
+            form.reset();
+            
+            // Establecer título
+            title.textContent = 'Nuevo Candidato';
+            
+            // Establecer modo de creación
+            form.dataset.mode = 'create';
+            form.dataset.id = '';
+            
+            // Mostrar modal
+            modal.style.display = 'block';
+        }
+        
+        async function openEditModal(candidateId) {
+            const modal = document.getElementById('candidateModal');
+            const form = document.getElementById('candidateForm');
+            const title = document.getElementById('modalTitle');
+            
+            try {
+                // Limpiar formulario
+                form.reset();
+                
+                // Establecer título
+                title.textContent = 'Editar Candidato';
+                
+                // Establecer modo de edición
+                form.dataset.mode = 'edit';
+                form.dataset.id = candidateId;
+                
+                // Cargar datos del candidato
+                const { data: candidate, error } = await supabaseClient
+                    .from('candidatos')
+                    .select('*')
+                    .eq('id_candidato', candidateId)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Llenar formulario con datos del candidato
+                document.getElementById('candidateRut').value = candidate.rut || '';
+                document.getElementById('candidateNombres').value = candidate.nombres || '';
+                document.getElementById('candidateApellidoPaterno').value = candidate.apellido_paterno || '';
+                document.getElementById('candidateApellidoMaterno').value = candidate.apellido_materno || '';
+                document.getElementById('candidateEmail').value = candidate.contacto_email || '';
+                document.getElementById('candidatePhone').value = candidate.contacto_telefono || '';
+                document.getElementById('candidateParty').value = candidate.id_partido || '';
+                document.getElementById('candidateStatus').value = candidate.estado || 'activo';
+                
+                // Mostrar modal
+                modal.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error al cargar datos del candidato:', error);
+                handleError(error, 'openEditModal');
+            }
+        }
+        
+        async function deleteCandidate(candidateId) {
+            if (!confirm('¿Está seguro de que desea eliminar este candidato? Esta acción no se puede deshacer.')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('candidatos')
+                    .delete()
+                    .eq('id_candidato', candidateId);
+                
+                if (error) throw error;
+                
+                // Actualizar cache
+                AppState.cache.candidates.data = null;
+                
+                // Recargar candidatos
+                loadCandidates();
+                
+                // Mostrar notificación de éxito
+                showToast('Candidato eliminado correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al eliminar candidato:', error);
+                handleError(error, 'deleteCandidate');
+            }
+        }
+        
+        // Manejar envío del formulario de candidato
+        document.getElementById('candidateForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const mode = form.dataset.mode;
+            const id = form.dataset.id;
+            
+            // Obtener datos del formulario
+            const formData = {
+                rut: document.getElementById('candidateRut').value,
+                nombres: document.getElementById('candidateNombres').value,
+                apellido_paterno: document.getElementById('candidateApellidoPaterno').value,
+                apellido_materno: document.getElementById('candidateApellidoMaterno').value,
+                contacto_email: document.getElementById('candidateEmail').value,
+                contacto_telefono: document.getElementById('candidatePhone').value,
+                id_partido: document.getElementById('candidateParty').value,
+                estado: document.getElementById('candidateStatus').value
+            };
+            
+            try {
+                let result;
+                
+                if (mode === 'create') {
+                    // Crear nuevo candidato
+                    result = await supabaseClient
+                        .from('candidatos')
+                        .insert(formData);
+                } else {
+                    // Actualizar candidato existente
+                    result = await supabaseClient
+                        .from('candidatos')
+                        .update(formData)
+                        .eq('id_candidato', id);
+                }
+                
+                if (result.error) throw result.error;
+                
+                // Actualizar cache
+                AppState.cache.candidates.data = null;
+                
+                // Recargar candidatos
+                loadCandidates();
+                
+                // Cerrar modal
+                closeModal('candidateModal');
+                
+                // Mostrar notificación de éxito
+                showToast(mode === 'create' ? 'Candidato creado correctamente' : 'Candidato actualizado correctamente', 'success');
+                
+            } catch (error) {
+                console.error(`Error al ${mode === 'create' ? 'crear' : 'actualizar'} candidato:`, error);
+                handleError(error, mode === 'create' ? 'createCandidate' : 'updateCandidate');
+            }
+        });
+        
+        // --- Lógica del Modal de Partidos ---
+        function openCreatePartyModal() {
+            const modal = document.getElementById('partyModal');
+            const form = document.getElementById('partyForm');
+            const title = document.getElementById('partyModalTitle');
+            
+            // Limpiar formulario
+            form.reset();
+            
+            // Establecer título
+            title.textContent = 'Nuevo Partido Político';
+            
+            // Establecer modo de creación
+            form.dataset.mode = 'create';
+            form.dataset.id = '';
+            
+            // Mostrar modal
+            modal.style.display = 'block';
+        }
+        
+        async function openEditPartyModal(partyId) {
+            const modal = document.getElementById('partyModal');
+            const form = document.getElementById('partyForm');
+            const title = document.getElementById('partyModalTitle');
+            
+            try {
+                // Limpiar formulario
+                form.reset();
+                
+                // Establecer título
+                title.textContent = 'Editar Partido Político';
+                
+                // Establecer modo de edición
+                form.dataset.mode = 'edit';
+                form.dataset.id = partyId;
+                
+                // Cargar datos del partido
+                const { data: party, error } = await supabaseClient
+                    .from('partidos_politicos')
+                    .select('*')
+                    .eq('id_partido', partyId)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Llenar formulario con datos del partido
+                document.getElementById('partyName').value = party.nombre_partido || '';
+                document.getElementById('partySigla').value = party.sigla || '';
+                document.getElementById('partyDescription').value = party.descripcion || '';
+                
+                // Mostrar modal
+                modal.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error al cargar datos del partido:', error);
+                handleError(error, 'openEditPartyModal');
+            }
+        }
+        
+        async function deleteParty(partyId) {
+            if (!confirm('¿Está seguro de que desea eliminar este partido? Esta acción no se puede deshacer.')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('partidos_politicos')
+                    .delete()
+                    .eq('id_partido', partyId);
+                
+                if (error) throw error;
+                
+                // Actualizar cache
+                AppState.cache.parties.data = null;
+                
+                // Recargar partidos
+                loadParties();
+                
+                // Mostrar notificación de éxito
+                showToast('Partido eliminado correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al eliminar partido:', error);
+                handleError(error, 'deleteParty');
+            }
+        }
+        
+        // Manejar envío del formulario de partido
+        document.getElementById('partyForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const mode = form.dataset.mode;
+            const id = form.dataset.id;
+            
+            // Obtener datos del formulario
+            const formData = {
+                nombre_partido: document.getElementById('partyName').value,
+                sigla: document.getElementById('partySigla').value,
+                descripcion: document.getElementById('partyDescription').value
+            };
+            
+            try {
+                let result;
+                
+                if (mode === 'create') {
+                    // Crear nuevo partido
+                    result = await supabaseClient
+                        .from('partidos_politicos')
+                        .insert(formData);
+                } else {
+                    // Actualizar partido existente
+                    result = await supabaseClient
+                        .from('partidos_politicos')
+                        .update(formData)
+                        .eq('id_partido', id);
+                }
+                
+                if (result.error) throw result.error;
+                
+                // Actualizar cache
+                AppState.cache.parties.data = null;
+                
+                // Recargar partidos
+                loadParties();
+                
+                // Actualizar filtros
+                updateFilters();
+                
+                // Cerrar modal
+                closeModal('partyModal');
+                
+                // Mostrar notificación de éxito
+                showToast(mode === 'create' ? 'Partido creado correctamente' : 'Partido actualizado correctamente', 'success');
+                
+            } catch (error) {
+                console.error(`Error al ${mode === 'create' ? 'crear' : 'actualizar'} partido:`, error);
+                handleError(error, mode === 'create' ? 'createParty' : 'updateParty');
+            }
+        });
+        
+        // Función para cerrar modales
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const candidateModal = document.getElementById('candidateModal');
+            const partyModal = document.getElementById('partyModal');
+            
+            if (event.target === candidateModal) {
+                candidateModal.style.display = 'none';
+            }
+            
+            if (event.target === partyModal) {
+                partyModal.style.display = 'none';
+            }
+        }
+        
+        // Función para exportar a Excel
+        function exportToExcel() {
+            try {
+                const candidates = AppState.getCandidates();
+                const parties = AppState.getParties();
+                
+                // Preparar datos para exportación
+                const exportData = candidates.map(candidate => {
+                    const party = parties.find(p => p.id_partido === candidate.id_partido);
+                    return {
+                        'RUT': candidate.rut,
+                        'Nombres': candidate.nombres,
+                        'Apellido Paterno': candidate.apellido_paterno,
+                        'Apellido Materno': candidate.apellido_materno,
+                        'Email': candidate.contacto_email,
+                        'Teléfono': candidate.contacto_telefono,
+                        'Partido Político': party ? party.nombre_partido : 'Sin partido',
+                        'Estado': candidate.estado
+                    };
+                });
+                
+                // Crear libro de Excel
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                
+                // Añadir hoja al libro
+                XLSX.utils.book_append_sheet(wb, ws, 'Candidatos');
+                
+                // Descargar archivo
+                XLSX.writeFile(wb, 'candidatos.xlsx');
+                
+                showToast('Datos exportados a Excel correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al exportar a Excel:', error);
+                handleError(error, 'exportToExcel');
+            }
+        }
+        
+        // Función para exportar a PDF
+        function exportToPDF() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Título
+                doc.setFontSize(18);
+                doc.text('Listado de Candidatos', 14, 22);
+                
+                // Fecha de generación
+                doc.setFontSize(12);
+                doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 30);
+                
+                // Datos de la tabla
+                const candidates = AppState.getCandidates();
+                const parties = AppState.getParties();
+                
+                // Encabezados de tabla
+                const headers = ['RUT', 'Nombre', 'Email', 'Partido', 'Estado'];
+                const data = [];
+                
+                // Filas de datos
+                candidates.forEach(candidate => {
+                    const party = parties.find(p => p.id_partido === candidate.id_partido);
+                    const fullName = `${candidate.nombres} ${candidate.apellido_paterno} ${candidate.apellido_materno || ''}`;
+                    
+                    data.push([
+                        candidate.rut,
+                        fullName,
+                        candidate.contacto_email,
+                        party ? party.nombre_partido : 'Sin partido',
+                        candidate.estado
+                    ]);
+                });
+                
+                // Generar tabla
+                doc.autoTable({
+                    head: [headers],
+                    body: data,
+                    startY: 40,
+                    theme: 'grid',
+                    styles: {
+                        fontSize: 10,
+                        cellPadding: 3
+                    },
+                    headStyles: {
+                        fillColor: [0, 51, 102],
+                        textColor: 255
+                    }
+                });
+                
+                // Descargar PDF
+                doc.save('candidatos.pdf');
+                
+                showToast('Datos exportados a PDF correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al exportar a PDF:', error);
+                handleError(error, 'exportToPDF');
+            }
+        }
+
+        // Función para mostrar errores
+        function showError(section, message) {
+            const sectionElement = document.getElementById(section);
+            const errorElement = document.createElement('div');
+            errorElement.className = 'error-message';
+            errorElement.textContent = message;
+            
+            sectionElement.appendChild(errorElement);
+        }
+    </script>
+</body>
+</html>

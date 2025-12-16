@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantenedor de Usuarios</title>
+    
+    <!-- Google Fonts: Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        /* --- Variables de Diseño y Estilos Globales --- */
+        :root {
+            --primary-color: #003366; /* Azul Oscuro */
+            --secondary-color: #0055a4; /* Azul Claro */
+            --accent-color: #ffcc00; /* Amarillo/Dorado Chileno */
+            --light-gray: #f4f7f6;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --font-family: 'Roboto', sans-serif;
+            --critical-color: #d32f2f; /* Rojo para alertas */
+            --warning-color: #f57c00; /* Naranja para advertencias */
+            --success-color: #388e3c;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- Estilos para la aplicación principal --- */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* --- Sidebar de Navegación --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--secondary-color);
+            padding-bottom: 20px;
+        }
+
+        .sidebar-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .nav-menu a {
+            display: block;
+            color: var(--white);
+            text-decoration: none;
+            padding: 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background-color: var(--secondary-color);
+        }
+
+        /* --- Contenido Principal --- */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            background-color: var(--white);
+            padding: 15px 30px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .content-area {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none; /* Ocultar todo por defecto */
+        }
+
+        .tab-content.active {
+            display: block; /* Mostrar la pestaña activa */
+        }
+
+        /* --- Estilos para la tabla de usuarios --- */
+        .users-container {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .users-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .users-table th, .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .users-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+
+        .users-table tr:hover {
+            background-color: var(--light-gray);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: var(--secondary-color);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-color);
+        }
+
+        .btn-edit {
+            background-color: var(--warning-color);
+            color: var(--white);
+        }
+
+        .btn-edit:hover {
+            background-color: #e65100;
+        }
+
+        .btn-delete {
+            background-color: var(--critical-color);
+            color: var(--white);
+        }
+
+        .btn-delete:hover {
+            background-color: #b71c1c;
+        }
+
+        /* --- Estilos para el formulario de usuario --- */
+        .user-form-container {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--dark-gray);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 85, 164, 0.2);
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* --- Estilos para el modal --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: var(--white);
+            margin: 10% auto;
+            padding: 30px;
+            border: none;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: var(--dark-gray);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-header {
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        /* --- Estilos para mensajes de estado --- */
+        .message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .message.success {
+            background-color: rgba(56, 142, 60, 0.1);
+            border: 1px solid var(--success-color);
+            color: var(--success-color);
+        }
+
+        .message.error {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid var(--critical-color);
+            color: var(--critical-color);
+        }
+
+        .message.warning {
+            background-color: rgba(245, 124, 0, 0.1);
+            border: 1px solid var(--warning-color);
+            color: var(--warning-color);
+        }
+
+        /* --- Estilos para carga --- */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.2em;
+            color: var(--secondary-color);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 85, 164, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* --- Estilos para paginación --- */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            background-color: var(--white);
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border-color: var(--secondary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* --- Estilos para búsqueda --- */
+        .search-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-family: var(--font-family);
+        }
+
+        .search-button {
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .search-button:hover {
+            background-color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Contenedor de la Aplicación Principal -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar de Navegación -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Mantenedor de Usuarios</h1>
+                <p>Sistema Administrativo</p>
+            </div>
+            <nav class="nav-menu">
+                <a href="#users" class="nav-link active" onclick="showTab(event, 'users')">👥 Usuarios</a>
+                <a href="#roles" class="nav-link" onclick="showTab(event, 'roles')">🔐 Roles</a>
+            </nav>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <div class="top-bar">
+                <h2>Panel de Administración</h2>
+                <div class="user-info">
+                    <span>Administrador</span>
+                </div>
+            </div>
+            
+            <div class="content-area">
+                <!-- PESTAÑA: USUARIOS -->
+                <div id="users" class="tab-content active">
+                    <div class="users-container">
+                        <div class="users-header">
+                            <h2>Gestión de Usuarios</h2>
+                            <button class="btn btn-primary" onclick="openCreateUserModal()">Nuevo Usuario</button>
+                        </div>
+
+                        <div class="search-container">
+                            <input type="text" id="searchInput" class="search-input" placeholder="Buscar por nombre, email o RUT...">
+                            <button class="search-button" onclick="searchUsers()">Buscar</button>
+                        </div>
+
+                        <div id="usersLoading" class="loading">
+                            <div class="loading-spinner"></div>
+                            Cargando usuarios...
+                        </div>
+
+                        <div id="usersTableContainer" style="display: none;">
+                            <table class="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Email</th>
+                                        <th>RUT</th>
+                                        <th>Rol</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <!-- Las filas se generarán dinámicamente -->
+                                </tbody>
+                            </table>
+                            
+                            <div class="pagination" id="usersPagination">
+                                <!-- Paginación se generará dinámicamente -->
+                            </div>
+                        </div>
+
+                        <div id="usersError" class="message error" style="display: none;">
+                            Error al cargar los usuarios. Por favor, intente nuevamente.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: ROLES -->
+                <div id="roles" class="tab-content">
+                    <div class="users-container">
+                        <div class="users-header">
+                            <h2>Gestión de Roles</h2>
+                            <button class="btn btn-primary" onclick="openCreateRoleModal()">Nuevo Rol</button>
+                        </div>
+
+                        <div id="rolesLoading" class="loading">
+                            <div class="loading-spinner"></div>
+                            Cargando roles...
+                        </div>
+
+                        <div id="rolesTableContainer" style="display: none;">
+                            <table class="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Descripción</th>
+                                        <th>Permisos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rolesTableBody">
+                                    <!-- Las filas se generarán dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="rolesError" class="message error" style="display: none;">
+                            Error al cargar los roles. Por favor, intente nuevamente.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Crear/Editar Usuario -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeUserModal()">&times;</span>
+            <div class="modal-header">
+                <h2 id="userModalTitle">Nuevo Usuario</h2>
+            </div>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                
+                <div class="form-group">
+                    <label for="userName">Nombre Completo</label>
+                    <input type="text" id="userName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userEmail">Email</label>
+                    <input type="email" id="userEmail" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userRut">RUT</label>
+                    <input type="text" id="userRut" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userRole">Rol</label>
+                    <select id="userRole" required>
+                        <option value="">Seleccionar rol</option>
+                        <!-- Las opciones se cargarán dinámicamente -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userStatus">Estado</label>
+                    <select id="userStatus" required>
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="passwordGroup">
+                    <label for="userPassword">Contraseña</label>
+                    <input type="password" id="userPassword">
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="button" class="btn" onclick="closeUserModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Crear/Editar Rol -->
+    <div id="roleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRoleModal()">&times;</span>
+            <div class="modal-header">
+                <h2 id="roleModalTitle">Nuevo Rol</h2>
+            </div>
+            <form id="roleForm">
+                <input type="hidden" id="roleId">
+                
+                <div class="form-group">
+                    <label for="roleName">Nombre del Rol</label>
+                    <input type="text" id="roleName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="roleDescription">Descripción</label>
+                    <input type="text" id="roleDescription">
+                </div>
+                
+                <div class="form-group">
+                    <label>Permisos</label>
+                    <div id="permissionsContainer">
+                        <!-- Los checkboxes de permisos se generarán dinámicamente -->
+                    </div>
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="button" class="btn" onclick="closeRoleModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Confirmar Eliminación -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeDeleteModal()">&times;</span>
+            <div class="modal-header">
+                <h2>Confirmar Eliminación</h2>
+            </div>
+            <p>¿Está seguro que desea eliminar este elemento? Esta acción no se puede deshacer.</p>
+            <div class="form-buttons">
+                <button type="button" class="btn" onclick="closeDeleteModal()">Cancelar</button>
+                <button type="button" class="btn btn-delete" id="confirmDeleteButton">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensajes de estado -->
+    <div id="successMessage" class="message success">
+        Operación realizada con éxito.
+    </div>
+    
+    <div id="errorMessage" class="message error">
+        Ha ocurrido un error. Por favor, intente nuevamente.
+    </div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+        
+        // Inicializar cliente de Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Variables globales
+        let currentTab = 'users';
+        let users = [];
+        let roles = [];
+        let permissions = [];
+        let currentPage = 1;
+        let pageSize = 10;
+        let totalPages = 0;
+        let searchQuery = '';
+        let deleteCallback = null;
+        
+        // Al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRoles();
+            loadUsers();
+        });
+        
+        // Función para mostrar pestañas
+        function showTab(event, tabName) {
+            // Ocultar todas las pestañas
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            // Quitar clase activa de todos los enlaces
+            const navLinks = document.getElementsByClassName('nav-link');
+            for (let i = 0; i < navLinks.length; i++) {
+                navLinks[i].classList.remove('active');
+            }
+            
+            // Mostrar la pestaña seleccionada
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            // Actualizar la pestaña actual
+            currentTab = tabName;
+            
+            // Cargar datos según la pestaña
+            if (tabName === 'users') {
+                loadUsers();
+            } else if (tabName === 'roles') {
+                loadRoles();
+            }
+        }
+        
+        // Función para cargar usuarios
+        async function loadUsers() {
+            try {
+                // Mostrar estado de carga
+                document.getElementById('usersLoading').style.display = 'flex';
+                document.getElementById('usersTableContainer').style.display = 'none';
+                document.getElementById('usersError').style.display = 'none';
+                
+                // Calcular offset para paginación
+                const offset = (currentPage - 1) * pageSize;
+                
+                // Construir consulta
+                let query = supabase
+                    .from('usuarios')
+                    .select('*, roles(*)', { count: 'exact' })
+                    .range(offset, offset + pageSize - 1);
+                
+                // Aplicar búsqueda si hay una consulta
+                if (searchQuery) {
+                    query = query.or(`nombre_completo.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,rut.ilike.%${searchQuery}%`);
+                }
+                
+                // Ejecutar consulta
+                const { data, error, count } = await query;
+                
+                if (error) throw error;
+                
+                // Guardar usuarios
+                users = data || [];
+                
+                // Calcular páginas totales
+                totalPages = Math.ceil(count / pageSize);
+                
+                // Renderizar tabla de usuarios
+                renderUsersTable();
+                
+                // Renderizar paginación
+                renderPagination();
+                
+                // Ocultar estado de carga y mostrar tabla
+                document.getElementById('usersLoading').style.display = 'none';
+                document.getElementById('usersTableContainer').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error al cargar usuarios:', error);
+                document.getElementById('usersLoading').style.display = 'none';
+                document.getElementById('usersError').style.display = 'block';
+                document.getElementById('usersError').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Función para renderizar la tabla de usuarios
+        function renderUsersTable() {
+            const tableBody = document.getElementById('usersTableBody');
+            tableBody.innerHTML = '';
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                
+                const statusBadge = user.estado === 'activo' 
+                    ? '<span class="badge success">Activo</span>' 
+                    : '<span class="badge critical">Inactivo</span>';
+                
+                row.innerHTML = `
+                    <td>${user.id_usuario}</td>
+                    <td>${user.nombre_completo}</td>
+                    <td>${user.email}</td>
+                    <td>${user.rut}</td>
+                    <td>${user.roles ? user.roles.nombre_rol : 'Sin rol'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-edit" onclick="editUser(${user.id_usuario})">Editar</button>
+                            <button class="btn btn-delete" onclick="confirmDeleteUser(${user.id_usuario})">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Función para renderizar la paginación
+        function renderPagination() {
+            const paginationContainer = document.getElementById('usersPagination');
+            paginationContainer.innerHTML = '';
+            
+            // Botón anterior
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Anterior';
+            prevButton.disabled = currentPage === 1;
+            prevButton.onclick = () => {
+                currentPage--;
+                loadUsers();
+            };
+            paginationContainer.appendChild(prevButton);
+            
+            // Números de página
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.className = i === currentPage ? 'active' : '';
+                pageButton.onclick = () => {
+                    currentPage = i;
+                    loadUsers();
+                };
+                paginationContainer.appendChild(pageButton);
+            }
+            
+            // Botón siguiente
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Siguiente';
+            nextButton.disabled = currentPage === totalPages || totalPages === 0;
+            nextButton.onclick = () => {
+                currentPage++;
+                loadUsers();
+            };
+            paginationContainer.appendChild(nextButton);
+        }
+        
+        // Función para buscar usuarios
+        function searchUsers() {
+            searchQuery = document.getElementById('searchInput').value.trim();
+            currentPage = 1;
+            loadUsers();
+        }
+        
+        // Función para abrir el modal de crear usuario
+        function openCreateUserModal() {
+            // Limpiar formulario
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('userModalTitle').textContent = 'Nuevo Usuario';
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('userPassword').required = true;
+            
+            // Cargar roles en el select
+            loadRolesInSelect();
+            
+            // Mostrar modal
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        // Función para editar un usuario
+        function editUser(userId) {
+            // Buscar usuario
+            const user = users.find(u => u.id_usuario === userId);
+            if (!user) return;
+            
+            // Llenar formulario
+            document.getElementById('userId').value = user.id_usuario;
+            document.getElementById('userName').value = user.nombre_completo;
+            document.getElementById('userEmail').value = user.email;
+            document.getElementById('userRut').value = user.rut;
+            document.getElementById('userRole').value = user.id_rol;
+            document.getElementById('userStatus').value = user.estado;
+            document.getElementById('userModalTitle').textContent = 'Editar Usuario';
+            document.getElementById('passwordGroup').style.display = 'none';
+            document.getElementById('userPassword').required = false;
+            
+            // Cargar roles en el select
+            loadRolesInSelect();
+            
+            // Mostrar modal
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        // Función para cargar roles en el select
+        function loadRolesInSelect() {
+            const roleSelect = document.getElementById('userRole');
+            roleSelect.innerHTML = '<option value="">Seleccionar rol</option>';
+            
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role.id_rol;
+                option.textContent = role.nombre_rol;
+                roleSelect.appendChild(option);
+            });
+        }
+        
+        // Función para cerrar el modal de usuario
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+        
+        // Función para confirmar eliminación de usuario
+        function confirmDeleteUser(userId) {
+            deleteCallback = () => deleteUser(userId);
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+        
+        // Función para eliminar un usuario
+        async function deleteUser(userId) {
+            try {
+                const { error } = await supabase
+                    .from('usuarios')
+                    .delete()
+                    .eq('id_usuario', userId);
+                
+                if (error) throw error;
+                
+                // Cerrar modal de confirmación
+                closeDeleteModal();
+                
+                // Mostrar mensaje de éxito
+                showMessage('successMessage');
+                
+                // Recargar usuarios
+                loadUsers();
+                
+            } catch (error) {
+                console.error('Error al eliminar usuario:', error);
+                showMessage('errorMessage', error.message);
+            }
+        }
+        
+        // Función para cargar roles
+        async function loadRoles() {
+            try {
+                // Mostrar estado de carga
+                if (currentTab === 'roles') {
+                    document.getElementById('rolesLoading').style.display = 'flex';
+                    document.getElementById('rolesTableContainer').style.display = 'none';
+                    document.getElementById('rolesError').style.display = 'none';
+                }
+                
+                // Cargar roles
+                const { data, error } = await supabase
+                    .from('roles')
+                    .select('*');
+                
+                if (error) throw error;
+                
+                // Guardar roles
+                roles = data || [];
+                
+                // Cargar permisos
+                await loadPermissions();
+                
+                // Renderizar tabla de roles si estamos en la pestaña de roles
+                if (currentTab === 'roles') {
+                    renderRolesTable();
+                    document.getElementById('rolesLoading').style.display = 'none';
+                    document.getElementById('rolesTableContainer').style.display = 'block';
+                }
+                
+            } catch (error) {
+                console.error('Error al cargar roles:', error);
+                if (currentTab === 'roles') {
+                    document.getElementById('rolesLoading').style.display = 'none';
+                    document.getElementById('rolesError').style.display = 'block';
+                    document.getElementById('rolesError').textContent = `Error: ${error.message}`;
+                }
+            }
+        }
+        
+        // Función para cargar permisos
+        async function loadPermissions() {
+            try {
+                const { data, error } = await supabase
+                    .from('permisos')
+                    .select('*');
+                
+                if (error) throw error;
+                
+                permissions = data || [];
+                
+            } catch (error) {
+                console.error('Error al cargar permisos:', error);
+            }
+        }
+        
+        // Función para renderizar la tabla de roles
+        function renderRolesTable() {
+            const tableBody = document.getElementById('rolesTableBody');
+            tableBody.innerHTML = '';
+            
+            roles.forEach(role => {
+                const row = document.createElement('tr');
+                
+                // Obtener nombres de permisos
+                const rolePermissions = permissions.filter(p => role.permisos && role.permisos.includes(p.id_permiso));
+                const permissionNames = rolePermissions.map(p => p.nombre_permiso).join(', ');
+                
+                row.innerHTML = `
+                    <td>${role.id_rol}</td>
+                    <td>${role.nombre_rol}</td>
+                    <td>${role.descripcion || 'Sin descripción'}</td>
+                    <td>${permissionNames || 'Sin permisos'}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-edit" onclick="editRole(${role.id_rol})">Editar</button>
+                            <button class="btn btn-delete" onclick="confirmDeleteRole(${role.id_rol})">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Función para abrir el modal de crear rol
+        function openCreateRoleModal() {
+            // Limpiar formulario
+            document.getElementById('roleForm').reset();
+            document.getElementById('roleId').value = '';
+            document.getElementById('roleModalTitle').textContent = 'Nuevo Rol';
+            
+            // Cargar permisos en checkboxes
+            loadPermissionsInCheckboxes();
+            
+            // Mostrar modal
+            document.getElementById('roleModal').style.display = 'block';
+        }
+        
+        // Función para editar un rol
+        function editRole(roleId) {
+            // Buscar rol
+            const role = roles.find(r => r.id_rol === roleId);
+            if (!role) return;
+            
+            // Llenar formulario
+            document.getElementById('roleId').value = role.id_rol;
+            document.getElementById('roleName').value = role.nombre_rol;
+            document.getElementById('roleDescription').value = role.descripcion || '';
+            document.getElementById('roleModalTitle').textContent = 'Editar Rol';
+            
+            // Cargar permisos en checkboxes
+            loadPermissionsInCheckboxes(role.permisos || []);
+            
+            // Mostrar modal
+            document.getElementById('roleModal').style.display = 'block';
+        }
+        
+        // Función para cargar permisos en checkboxes
+        function loadPermissionsInCheckboxes(selectedPermissions = []) {
+            const container = document.getElementById('permissionsContainer');
+            container.innerHTML = '';
+            
+            permissions.forEach(permission => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '10px';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `permission-${permission.id_permiso}`;
+                checkbox.value = permission.id_permiso;
+                checkbox.checked = selectedPermissions.includes(permission.id_permiso);
+                
+                const label = document.createElement('label');
+                label.htmlFor = `permission-${permission.id_permiso}`;
+                label.textContent = `${permission.nombre_permiso} - ${permission.descripcion}`;
+                label.style.marginLeft = '10px';
+                
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+        
+        // Función para cerrar el modal de rol
+        function closeRoleModal() {
+            document.getElementById('roleModal').style.display = 'none';
+        }
+        
+        // Función para confirmar eliminación de rol
+        function confirmDeleteRole(roleId) {
+            deleteCallback = () => deleteRole(roleId);
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+        
+        // Función para eliminar un rol
+        async function deleteRole(roleId) {
+            try {
+                const { error } = await supabase
+                    .from('roles')
+                    .delete()
+                    .eq('id_rol', roleId);
+                
+                if (error) throw error;
+                
+                // Cerrar modal de confirmación
+                closeDeleteModal();
+                
+                // Mostrar mensaje de éxito
+                showMessage('successMessage');
+                
+                // Recargar roles
+                loadRoles();
+                
+            } catch (error) {
+                console.error('Error al eliminar rol:', error);
+                showMessage('errorMessage', error.message);
+            }
+        }
+        
+        // Función para cerrar el modal de confirmación
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+            deleteCallback = null;
+        }
+        
+        // Función para mostrar mensajes
+        function showMessage(messageId, customText = null) {
+            const messageElement = document.getElementById(messageId);
+            
+            if (customText) {
+                messageElement.textContent = customText;
+            }
+            
+            messageElement.style.display = 'block';
+            
+            // Ocultar después de 3 segundos
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Event listeners para formularios
+        document.getElementById('userForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const userId = document.getElementById('userId').value;
+                const userData = {
+                    nombre_completo: document.getElementById('userName').value,
+                    email: document.getElementById('userEmail').value,
+                    rut: document.getElementById('userRut').value,
+                    id_rol: document.getElementById('userRole').value,
+                    estado: document.getElementById('userStatus').value
+                };
+                
+                // Si es un nuevo usuario, agregar contraseña
+                if (!userId) {
+                    userData.password = document.getElementById('userPassword').value;
+                }
+                
+                let result;
+                
+                if (userId) {
+                    // Actualizar usuario existente
+                    result = await supabase
+                        .from('usuarios')
+                        .update(userData)
+                        .eq('id_usuario', userId);
+                } else {
+                    // Crear nuevo usuario
+                    result = await supabase
+                        .from('usuarios')
+                        .insert(userData);
+                }
+                
+                if (result.error) throw result.error;
+                
+                // Cerrar modal
+                closeUserModal();
+                
+                // Mostrar mensaje de éxito
+                showMessage('successMessage');
+                
+                // Recargar usuarios
+                loadUsers();
+                
+            } catch (error) {
+                console.error('Error al guardar usuario:', error);
+                showMessage('errorMessage', error.message);
+            }
+        });
+        
+        document.getElementById('roleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const roleId = document.getElementById('roleId').value;
+                
+                // Obtener permisos seleccionados
+                const selectedPermissions = [];
+                const checkboxes = document.querySelectorAll('#permissionsContainer input[type="checkbox"]:checked');
+                
+                checkboxes.forEach(checkbox => {
+                    selectedPermissions.push(parseInt(checkbox.value));
+                });
+                
+                const roleData = {
+                    nombre_rol: document.getElementById('roleName').value,
+                    descripcion: document.getElementById('roleDescription').value,
+                    permisos: selectedPermissions
+                };
+                
+                let result;
+                
+                if (roleId) {
+                    // Actualizar rol existente
+                    result = await supabase
+                        .from('roles')
+                        .update(roleData)
+                        .eq('id_rol', roleId);
+                } else {
+                    // Crear nuevo rol
+                    result = await supabase
+                        .from('roles')
+                        .insert(roleData);
+                }
+                
+                if (result.error) throw result.error;
+                
+                // Cerrar modal
+                closeRoleModal();
+                
+                // Mostrar mensaje de éxito
+                showMessage('successMessage');
+                
+                // Recargar roles
+                loadRoles();
+                
+            } catch (error) {
+                console.error('Error al guardar rol:', error);
+                showMessage('errorMessage', error.message);
+            }
+        });
+        
+        // Event listener para el botón de confirmar eliminación
+        document.getElementById('confirmDeleteButton').addEventListener('click', function() {
+            if (deleteCallback) {
+                deleteCallback();
+            }
+        });
+        
+        // Cerrar modales al hacer clic fuera de ellos
+        window.onclick = function(event) {
+            const userModal = document.getElementById('userModal');
+            const roleModal = document.getElementById('roleModal');
+            const deleteModal = document.getElementById('deleteModal');
+            
+            if (event.target === userModal) {
+                closeUserModal();
+            } else if (event.target === roleModal) {
+                closeRoleModal();
+            } else if (event.target === deleteModal) {
+                closeDeleteModal();
+            }
+        }
+    </script>
+</body>
+</html>

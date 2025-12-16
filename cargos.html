@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantenedor de Cargos - Plataforma Gubernamental</title>
+    
+    <!-- Google Fonts: Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js para visualizaciones -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- jsPDF para generación de reportes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- SheetJS para exportar a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* --- Variables de Diseño y Estilos Globales --- */
+        :root {
+            --primary-color: #003366; /* Azul Oscuro */
+            --secondary-color: #0055a4; /* Azul Claro */
+            --accent-color: #ffcc00; /* Amarillo/Dorado Chileno */
+            --light-gray: #f4f7f6;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --font-family: 'Roboto', sans-serif;
+            --critical-color: #d32f2f; /* Rojo para alertas */
+            --warning-color: #f57c00; /* Naranja para advertencias */
+            --success-color: #388e3c;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- Estilos para la aplicación principal --- */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* --- Sidebar de Navegación --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--secondary-color);
+            padding-bottom: 20px;
+        }
+
+        .sidebar-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .nav-menu a {
+            display: block;
+            color: var(--white);
+            text-decoration: none;
+            padding: 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background-color: var(--secondary-color);
+        }
+
+        /* --- Contenido Principal --- */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            background-color: var(--white);
+            padding: 15px 30px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .content-area {
+            padding: 30px;
+        }
+
+        /* --- Estilos de Tabla y CRUD --- */
+        .table-container {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .table-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background-color: var(--secondary-color);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-color);
+        }
+
+        .btn-secondary {
+            background-color: var(--medium-gray);
+            color: var(--dark-gray);
+        }
+
+        .btn-secondary:hover {
+            background-color: #ccc;
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: var(--white);
+        }
+
+        .btn-success:hover {
+            background-color: #2e7d32;
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: var(--white);
+        }
+
+        .btn-warning:hover {
+            background-color: #e65100;
+        }
+
+        .btn-danger {
+            background-color: var(--critical-color);
+            color: var(--white);
+        }
+
+        .btn-danger:hover {
+            background-color: #b71c1c;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.8em;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .data-table th {
+            background-color: var(--light-gray);
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .data-table tr:hover {
+            background-color: rgba(0, 85, 164, 0.05);
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        /* --- Modal para Formulario de Cargo --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: var(--white);
+            margin: 5% auto;
+            padding: 30px;
+            border: none;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .close {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: var(--dark-gray);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-header {
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--dark-gray);
+        }
+
+        .form-group input, 
+        .form-group select, 
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus, 
+        .form-group select:focus, 
+        .form-group textarea:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 85, 164, 0.2);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* --- Estilos de Filtros --- */
+        .filters-container {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filters-container input, 
+        .filters-container select {
+            padding: 10px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-family: var(--font-family);
+        }
+
+        /* --- Estilos de Paginación --- */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            background-color: var(--white);
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border-color: var(--secondary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* --- Estilos de Notificaciones --- */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: var(--white);
+            font-weight: 500;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background-color: var(--success-color);
+        }
+
+        .toast.error {
+            background-color: var(--critical-color);
+        }
+
+        .toast.warning {
+            background-color: var(--warning-color);
+        }
+
+        /* --- Estilos de Carga --- */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.2em;
+            color: var(--secondary-color);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* --- Estilos de Mensaje de Error --- */
+        .error-message {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid var(--critical-color);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            color: var(--critical-color);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--dark-gray);
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            color: var(--medium-gray);
+        }
+    </style>
+</head>
+<body>
+    <!-- Contenedor de la Aplicación Principal -->
+    <div class="app-container">
+        <!-- Sidebar de Navegación -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Mantenedor de Cargos</h1>
+                <p>Plataforma Gubernamental</p>
+            </div>
+            <nav class="nav-menu">
+                <a href="#positions" class="nav-link active" onclick="showTab(event, 'positions')">📋 Gestión de Cargos</a>
+                <a href="#reports" class="nav-link" onclick="showTab(event, 'reports')">📊 Reportes</a>
+            </nav>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <div class="top-bar">
+                <h2>Sistema de Gestión de Cargos</h2>
+                <div class="user-info">
+                    <span>Administrador del Sistema</span>
+                </div>
+            </div>
+            
+            <div class="content-area">
+                <!-- PESTAÑA: GESTIÓN DE CARGOS -->
+                <div id="positions" class="tab-content active">
+                    <!-- Filtros -->
+                    <div class="filters-container">
+                        <input type="text" id="searchInput" placeholder="Buscar por nombre de cargo..." style="flex-grow: 1;">
+                        <select id="levelFilter">
+                            <option value="">Todos los Niveles</option>
+                            <option value="Ministro">Ministro</option>
+                            <option value="Subsecretario">Subsecretario</option>
+                            <option value="Seremi">Seremi</option>
+                            <option value="Director">Director</option>
+                            <option value="Jefe de Departamento">Jefe de Departamento</option>
+                        </select>
+                        <select id="statusFilter">
+                            <option value="">Todos los Estados</option>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                            <option value="por definir">Por Definir</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="applyFilters()">
+                            🔍 Buscar
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetFilters()">
+                            🔄 Limpiar Filtros
+                        </button>
+                    </div>
+
+                    <!-- Tabla de Cargos -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h2>Lista de Cargos</h2>
+                            <div class="action-buttons">
+                                <button class="btn btn-success" onclick="openModal()">
+                                    ➕ Agregar Cargo
+                                </button>
+                                <button class="btn btn-secondary" onclick="exportToExcel()">
+                                    📥 Exportar a Excel
+                                </button>
+                                <button class="btn btn-secondary" onclick="generateReport()">
+                                    📄 Generar Reporte PDF
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="loadingContainer" class="loading" style="display: none;">
+                            <span class="loading-spinner"></span>
+                            Cargando datos...
+                        </div>
+                        
+                        <div id="errorContainer" class="error-message" style="display: none;">
+                            Error al cargar los datos. Por favor, intente nuevamente.
+                        </div>
+                        
+                        <div id="emptyState" class="empty-state" style="display: none;">
+                            <div class="empty-state-icon">📋</div>
+                            <h3>No hay cargos registrados</h3>
+                            <p>Comience agregando un nuevo cargo haciendo clic en el botón "Agregar Cargo".</p>
+                        </div>
+                        
+                        <table class="data-table" id="positionsTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre del Cargo</th>
+                                    <th>Descripción</th>
+                                    <th>Nivel Jerárquico</th>
+                                    <th>Ámbito</th>
+                                    <th>Ministerio/Servicio</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positionsTableBody">
+                                <!-- Las filas se generarán dinámicamente -->
+                            </tbody>
+                        </table>
+                        
+                        <div class="pagination" id="pagination" style="display: none;">
+                            <!-- Paginación se generará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: REPORTES -->
+                <div id="reports" class="tab-content">
+                    <div class="chart-container">
+                        <h2>Reportes de Cargos</h2>
+                        <div class="dashboard-grid">
+                            <div class="kpi-card">
+                                <h3>Total de Cargos</h3>
+                                <div class="number" id="totalPositions">-</div>
+                            </div>
+                            <div class="kpi-card">
+                                <h3>Cargos Activos</h3>
+                                <div class="number" id="activePositions">-</div>
+                            </div>
+                            <div class="kpi-card">
+                                <h3>Cargos por Definir</h3>
+                                <div class="number" id="pendingPositions">-</div>
+                            </div>
+                            <div class="kpi-card">
+                                <h3>Cargos por Nivel</h3>
+                                <div class="number" id="positionsByLevel">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h2>Distribución de Cargos por Nivel Jerárquico</h2>
+                            <canvas id="positionsByLevelChart" style="height: 300px; width: 100%;"></canvas>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h2>Distribución de Cargos por Ministerio/Servicio</h2>
+                            <canvas id="positionsByMinistryChart" style="height: 300px; width: 100%;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Formulario de Cargo -->
+    <div id="positionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div class="modal-header">
+                <h2 id="modalTitle">Agregar Nuevo Cargo</h2>
+            </div>
+            <form id="positionForm">
+                <input type="hidden" id="positionId">
+                
+                <div class="form-group">
+                    <label for="positionName">Nombre del Cargo *</label>
+                    <input type="text" id="positionName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionDescription">Descripción *</label>
+                    <textarea id="positionDescription" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionLevel">Nivel Jerárquico *</label>
+                    <select id="positionLevel" required>
+                        <option value="">Seleccione un nivel</option>
+                        <option value="Ministro">Ministro</option>
+                        <option value="Subsecretario">Subsecretario</option>
+                        <option value="Seremi">Seremi</option>
+                        <option value="Director">Director</option>
+                        <option value="Jefe de Departamento">Jefe de Departamento</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionScope">Ámbito *</label>
+                    <select id="positionScope" required>
+                        <option value="">Seleccione un ámbito</option>
+                        <option value="Nacional">Nacional</option>
+                        <option value="Regional">Regional</option>
+                        <option value="Provincial">Provincial</option>
+                        <option value="Local">Local</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionMinistry">Ministerio/Servicio *</label>
+                    <input type="text" id="positionMinistry" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionRegion">Región</label>
+                    <select id="positionRegion">
+                        <option value="">Seleccione una región</option>
+                        <option value="Región de Arica y Parinacota">Región de Arica y Parinacota</option>
+                        <option value="Región de Tarapacá">Región de Tarapacá</option>
+                        <option value="Región de Antofagasta">Región de Antofagasta</option>
+                        <option value="Región de Atacama">Región de Atacama</option>
+                        <option value="Región de Coquimbo">Región de Coquimbo</option>
+                        <option value="Región de Valparaíso">Región de Valparaíso</option>
+                        <option value="Región Metropolitana de Santiago">Región Metropolitana de Santiago</option>
+                        <option value="Región del Libertador General Bernardo O'Higgins">Región del Libertador General Bernardo O'Higgins</option>
+                        <option value="Región del Maule">Región del Maule</option>
+                        <option value="Región de Ñuble">Región de Ñuble</option>
+                        <option value="Región del Biobío">Región del Biobío</option>
+                        <option value="Región de La Araucanía">Región de La Araucanía</option>
+                        <option value="Región de Los Ríos">Región de Los Ríos</option>
+                        <option value="Región de Los Lagos">Región de Los Lagos</option>
+                        <option value="Región de Aysén del General Carlos Ibáñez del Campo">Región de Aysén del General Carlos Ibáñez del Campo</option>
+                        <option value="Región de Magallanes y de la Antártica Chilena">Región de Magallanes y de la Antártica Chilena</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionStatus">Estado *</label>
+                    <select id="positionStatus" required>
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                        <option value="por definir">Por Definir</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+        
+        // Inicializar cliente de Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Variables globales
+        let positionsData = [];
+        let filteredPositionsData = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let totalItems = 0;
+        let totalPages = 0;
+        let currentTab = 'positions';
+        let positionsByLevelChart = null;
+        let positionsByMinistryChart = null;
+        
+        // Variables para debounce
+        let searchTimeout = null;
+        
+        // Función para mostrar notificaciones toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Función para manejar errores
+        function handleError(error, context = 'general') {
+            console.error(`Error en ${context}:`, error);
+            showToast(`Error: ${error.message || 'Ha ocurrido un error inesperado'}`, 'error');
+        }
+        
+        // Función para aplicar debounce
+        function debounce(func, wait) {
+            return function(...args) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+        
+        // Función para cambiar de pestaña
+        function showTab(event, tabName) {
+            var i, tabcontent, navlinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            navlinks = document.getElementsByClassName("nav-link");
+            for (i = 0; i < navlinks.length; i++) {
+                navlinks[i].classList.remove("active");
+            }
+
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+            
+            currentTab = tabName;
+            
+            if (tabName === 'reports') {
+                loadReports();
+            }
+        }
+        
+        // Función para cargar los datos de cargos
+        async function loadPositions() {
+            try {
+                document.getElementById('loadingContainer').style.display = 'flex';
+                document.getElementById('errorContainer').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('positionsTable').style.display = 'none';
+                document.getElementById('pagination').style.display = 'none';
+                
+                const { data, error } = await supabase
+                    .from('cargos')
+                    .select('*')
+                    .order('id_cargo', { ascending: true });
+                
+                if (error) throw error;
+                
+                positionsData = data || [];
+                filteredPositionsData = [...positionsData];
+                totalItems = filteredPositionsData.length;
+                totalPages = Math.ceil(totalItems / itemsPerPage);
+                
+                if (totalItems === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                } else {
+                    renderTable();
+                    renderPagination();
+                    document.getElementById('positionsTable').style.display = 'table';
+                    document.getElementById('pagination').style.display = 'flex';
+                }
+                
+                document.getElementById('loadingContainer').style.display = 'none';
+                
+            } catch (error) {
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('errorContainer').style.display = 'block';
+                handleError(error, 'loadPositions');
+            }
+        }
+        
+        // Función para renderizar la tabla
+        function renderTable() {
+            const tableBody = document.getElementById('positionsTableBody');
+            tableBody.innerHTML = '';
+            
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = filteredPositionsData.slice(startIndex, endIndex);
+            
+            pageData.forEach(position => {
+                const row = document.createElement('tr');
+                
+                // Determinar clase para el estado
+                let statusClass = '';
+                if (position.estado_cargo === 'activo') {
+                    statusClass = 'badge-success';
+                } else if (position.estado_cargo === 'inactivo') {
+                    statusClass = 'badge-danger';
+                } else if (position.estado_cargo === 'por definir') {
+                    statusClass = 'badge-warning';
+                }
+                
+                row.innerHTML = `
+                    <td>${position.id_cargo}</td>
+                    <td>${position.nombre_cargo}</td>
+                    <td>${position.descripcion_cargo ? position.descripcion_cargo.substring(0, 50) + '...' : ''}</td>
+                    <td>${position.nivel_jerarquico}</td>
+                    <td>${position.ambito}</td>
+                    <td>${position.ministerio_servicio}</td>
+                    <td><span class="badge ${statusClass}">${position.estado_cargo}</span></td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-primary" onclick="editPosition(${position.id_cargo})">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deletePosition(${position.id_cargo})">🗑️</button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Función para renderizar la paginación
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            // Botón anterior
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Anterior';
+            prevButton.disabled = currentPage === 1;
+            prevButton.onclick = () => {
+                currentPage--;
+                renderTable();
+                renderPagination();
+            };
+            pagination.appendChild(prevButton);
+            
+            // Números de página
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.className = i === currentPage ? 'active' : '';
+                pageButton.onclick = () => {
+                    currentPage = i;
+                    renderTable();
+                    renderPagination();
+                };
+                pagination.appendChild(pageButton);
+            }
+            
+            // Botón siguiente
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Siguiente';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.onclick = () => {
+                currentPage++;
+                renderTable();
+                renderPagination();
+            };
+            pagination.appendChild(nextButton);
+        }
+        
+        // Función para aplicar filtros
+        const applyFilters = debounce(function() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const levelFilter = document.getElementById('levelFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            filteredPositionsData = positionsData.filter(position => {
+                const matchesSearch = !searchTerm || 
+                    position.nombre_cargo.toLowerCase().includes(searchTerm) ||
+                    (position.descripcion_cargo && position.descripcion_cargo.toLowerCase().includes(searchTerm));
+                
+                const matchesLevel = !levelFilter || position.nivel_jerarquico === levelFilter;
+                const matchesStatus = !statusFilter || position.estado_cargo === statusFilter;
+                
+                return matchesSearch && matchesLevel && matchesStatus;
+            });
+            
+            totalItems = filteredPositionsData.length;
+            totalPages = Math.ceil(totalItems / itemsPerPage);
+            currentPage = 1;
+            
+            if (totalItems === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('positionsTable').style.display = 'none';
+                document.getElementById('pagination').style.display = 'none';
+            } else {
+                document.getElementById('emptyState').style.display = 'none';
+                renderTable();
+                renderPagination();
+                document.getElementById('positionsTable').style.display = 'table';
+                document.getElementById('pagination').style.display = 'flex';
+            }
+        }, 300);
+        
+        // Función para resetear filtros
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('levelFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            
+            filteredPositionsData = [...positionsData];
+            totalItems = filteredPositionsData.length;
+            totalPages = Math.ceil(totalItems / itemsPerPage);
+            currentPage = 1;
+            
+            if (totalItems === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('positionsTable').style.display = 'none';
+                document.getElementById('pagination').style.display = 'none';
+            } else {
+                document.getElementById('emptyState').style.display = 'none';
+                renderTable();
+                renderPagination();
+                document.getElementById('positionsTable').style.display = 'table';
+                document.getElementById('pagination').style.display = 'flex';
+            }
+        }
+        
+        // Función para abrir el modal
+        function openModal(positionId = null) {
+            const modal = document.getElementById('positionModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const form = document.getElementById('positionForm');
+            
+            // Resetear formulario
+            form.reset();
+            document.getElementById('positionId').value = '';
+            
+            if (positionId) {
+                // Modo edición
+                modalTitle.textContent = 'Editar Cargo';
+                
+                // Cargar datos del cargo
+                const position = positionsData.find(p => p.id_cargo === positionId);
+                if (position) {
+                    document.getElementById('positionId').value = position.id_cargo;
+                    document.getElementById('positionName').value = position.nombre_cargo;
+                    document.getElementById('positionDescription').value = position.descripcion_cargo || '';
+                    document.getElementById('positionLevel').value = position.nivel_jerarquico;
+                    document.getElementById('positionScope').value = position.ambito;
+                    document.getElementById('positionMinistry').value = position.ministerio_servicio;
+                    document.getElementById('positionRegion').value = position.region || '';
+                    document.getElementById('positionStatus').value = position.estado_cargo;
+                }
+            } else {
+                // Modo creación
+                modalTitle.textContent = 'Agregar Nuevo Cargo';
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        // Función para cerrar el modal
+        function closeModal() {
+            document.getElementById('positionModal').style.display = 'none';
+        }
+        
+        // Función para editar un cargo
+        function editPosition(positionId) {
+            openModal(positionId);
+        }
+        
+        // Función para eliminar un cargo
+        async function deletePosition(positionId) {
+            if (confirm('¿Está seguro de que desea eliminar este cargo? Esta acción no se puede deshacer.')) {
+                try {
+                    const { error } = await supabase
+                        .from('cargos')
+                        .delete()
+                        .eq('id_cargo', positionId);
+                    
+                    if (error) throw error;
+                    
+                    showToast('Cargo eliminado correctamente', 'success');
+                    loadPositions();
+                    
+                } catch (error) {
+                    handleError(error, 'deletePosition');
+                }
+            }
+        }
+        
+        // Función para guardar un cargo (crear o actualizar)
+        async function savePosition(event) {
+            event.preventDefault();
+            
+            const positionId = document.getElementById('positionId').value;
+            const positionData = {
+                nombre_cargo: document.getElementById('positionName').value,
+                descripcion_cargo: document.getElementById('positionDescription').value,
+                nivel_jerarquico: document.getElementById('positionLevel').value,
+                ambito: document.getElementById('positionScope').value,
+                ministerio_servicio: document.getElementById('positionMinistry').value,
+                region: document.getElementById('positionRegion').value,
+                estado_cargo: document.getElementById('positionStatus').value
+            };
+            
+            try {
+                if (positionId) {
+                    // Actualizar cargo existente
+                    const { error } = await supabase
+                        .from('cargos')
+                        .update(positionData)
+                        .eq('id_cargo', positionId);
+                    
+                    if (error) throw error;
+                    
+                    showToast('Cargo actualizado correctamente', 'success');
+                } else {
+                    // Crear nuevo cargo
+                    const { error } = await supabase
+                        .from('cargos')
+                        .insert(positionData);
+                    
+                    if (error) throw error;
+                    
+                    showToast('Cargo creado correctamente', 'success');
+                }
+                
+                closeModal();
+                loadPositions();
+                
+            } catch (error) {
+                handleError(error, 'savePosition');
+            }
+        }
+        
+        // Función para exportar a Excel
+        function exportToExcel() {
+            try {
+                // Crear una copia de los datos para exportar
+                const exportData = filteredPositionsData.map(position => {
+                    return {
+                        'ID': position.id_cargo,
+                        'Nombre del Cargo': position.nombre_cargo,
+                        'Descripción': position.descripcion_cargo,
+                        'Nivel Jerárquico': position.nivel_jerarquico,
+                        'Ámbito': position.ambito,
+                        'Ministerio/Servicio': position.ministerio_servicio,
+                        'Región': position.region,
+                        'Estado': position.estado_cargo
+                    };
+                });
+                
+                // Crear una nueva hoja de cálculo
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Cargos');
+                
+                // Generar el archivo Excel
+                XLSX.writeFile(wb, 'cargos.xlsx');
+                
+                showToast('Datos exportados a Excel correctamente', 'success');
+                
+            } catch (error) {
+                handleError(error, 'exportToExcel');
+            }
+        }
+        
+        // Función para generar reporte PDF
+        function generateReport() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Título
+                doc.setFontSize(18);
+                doc.text('Reporte de Cargos', 14, 22);
+                
+                // Fecha
+                doc.setFontSize(12);
+                doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 30);
+                
+                // Tabla de datos
+                let yPosition = 40;
+                doc.setFontSize(10);
+                
+                // Encabezados de tabla
+                doc.text('ID', 14, yPosition);
+                doc.text('Nombre del Cargo', 30, yPosition);
+                doc.text('Nivel', 120, yPosition);
+                doc.text('Estado', 170, yPosition);
+                
+                yPosition += 10;
+                
+                // Filas de datos
+                filteredPositionsData.slice(0, 20).forEach(position => {
+                    if (yPosition > 270) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    
+                    doc.text(position.id_cargo.toString(), 14, yPosition);
+                    doc.text(position.nombre_cargo.substring(0, 30), 30, yPosition);
+                    doc.text(position.nivel_jerarquico, 120, yPosition);
+                    doc.text(position.estado_cargo, 170, yPosition);
+                    
+                    yPosition += 7;
+                });
+                
+                // Guardar el PDF
+                doc.save('reporte_cargos.pdf');
+                
+                showToast('Reporte PDF generado correctamente', 'success');
+                
+            } catch (error) {
+                handleError(error, 'generateReport');
+            }
+        }
+        
+        // Función para cargar datos de reportes
+        async function loadReports() {
+            try {
+                // Si no hay datos cargados, cargarlos
+                if (positionsData.length === 0) {
+                    const { data, error } = await supabase
+                        .from('cargos')
+                        .select('*');
+                    
+                    if (error) throw error;
+                    
+                    positionsData = data || [];
+                }
+                
+                // Calcular KPIs
+                const totalPositions = positionsData.length;
+                const activePositions = positionsData.filter(p => p.estado_cargo === 'activo').length;
+                const pendingPositions = positionsData.filter(p => p.estado_cargo === 'por definir').length;
+                
+                // Actualizar KPIs
+                document.getElementById('totalPositions').textContent = totalPositions;
+                document.getElementById('activePositions').textContent = activePositions;
+                document.getElementById('pendingPositions').textContent = pendingPositions;
+                document.getElementById('positionsByLevel').textContent = 'Ver gráfico';
+                
+                // Preparar datos para gráficos
+                const levels = {};
+                const ministries = {};
+                
+                positionsData.forEach(position => {
+                    // Contar por nivel
+                    const level = position.nivel_jerarquico || 'Sin nivel';
+                    levels[level] = (levels[level] || 0) + 1;
+                    
+                    // Contar por ministerio
+                    const ministry = position.ministerio_servicio || 'Sin ministerio';
+                    ministries[ministry] = (ministries[ministry] || 0) + 1;
+                });
+                
+                // Destruir gráficos existentes si los hay
+                if (positionsByLevelChart) positionsByLevelChart.destroy();
+                if (positionsByMinistryChart) positionsByMinistryChart.destroy();
+                
+                // Gráfico de barras para niveles
+                const levelCtx = document.getElementById('positionsByLevelChart').getContext('2d');
+                positionsByLevelChart = new Chart(levelCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(levels),
+                        datasets: [{
+                            label: 'Cantidad de Cargos',
+                            data: Object.values(levels),
+                            backgroundColor: 'rgba(0, 85, 164, 0.6)',
+                            borderColor: 'rgba(0, 85, 164, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Gráfico circular para ministerios
+                const ministryCtx = document.getElementById('positionsByMinistryChart').getContext('2d');
+                positionsByMinistryChart = new Chart(ministryCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(ministries),
+                        datasets: [{
+                            data: Object.values(ministries),
+                            backgroundColor: [
+                                'rgba(0, 85, 164, 0.6)',
+                                'rgba(255, 204, 0, 0.6)',
+                                'rgba(56, 142, 60, 0.6)',
+                                'rgba(211, 47, 47, 0.6)',
+                                'rgba(245, 124, 0, 0.6)',
+                                'rgba(123, 31, 162, 0.6)',
+                                'rgba(0, 150, 136, 0.6)',
+                                'rgba(96, 125, 139, 0.6)'
+                            ],
+                            borderColor: [
+                                'rgba(0, 85, 164, 1)',
+                                'rgba(255, 204, 0, 1)',
+                                'rgba(56, 142, 60, 1)',
+                                'rgba(211, 47, 47, 1)',
+                                'rgba(245, 124, 0, 1)',
+                                'rgba(123, 31, 162, 1)',
+                                'rgba(0, 150, 136, 1)',
+                                'rgba(96, 125, 139, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+                
+            } catch (error) {
+                handleError(error, 'loadReports');
+            }
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cargar datos iniciales
+            loadPositions();
+            
+            // Configurar evento de submit del formulario
+            document.getElementById('positionForm').addEventListener('submit', savePosition);
+            
+            // Configurar evento de búsqueda en tiempo real
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            
+            // Configurar evento para cerrar modal al hacer clic fuera de él
+            window.onclick = function(event) {
+                const modal = document.getElementById('positionModal');
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

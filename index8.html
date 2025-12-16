@@ -846,11 +846,15 @@
 
     <script>
         // Configuración de Supabase
-        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabaseClient.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
         
         // Inicializar cliente de Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        //const supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabaseClient.createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY
+        );
 
         // Variables globales para las instancias de los gráficos
         let governanceChartInstance = null;
@@ -1051,7 +1055,7 @@
         // Función para verificar la conexión
         async function checkConnection() {
             try {
-                const { data, error } = await supabase.from('partidos_politicos').select('count', { count: 'exact', head: true });
+                const { data, error } = await supabaseClient.from('partidos_politicos').select('count', { count: 'exact', head: true });
                 if (error) throw error;
                 updateConnectionStatus(true);
                 return true;
@@ -1081,7 +1085,7 @@
             await checkConnection();
             
             // Verificar si hay una sesión activa
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             
             if (session) {
                 AppState.setCurrentUser(session.user);
@@ -1139,7 +1143,7 @@
                 
                 // Intentar login con Supabase
                 const { data, error } = await fetchWithRetry(async () => {
-                    return await supabase.auth.signInWithPassword({
+                    return await supabaseClient.auth.signInWithPassword({
                         email: email,
                         password: password
                     });
@@ -1170,7 +1174,7 @@
         async function logout() {
             try {
                 // Cerrar sesión con Supabase
-                const { error } = await supabase.auth.signOut();
+                const { error } = await supabaseClient.auth.signOut();
                 
                 if (error) {
                     throw error;
@@ -1705,7 +1709,7 @@
                 // Si los datos no están cargados, cargarlos desde Supabase
                 if (!positions || positions.length === 0) {
                     console.log('Cargando datos de cargos...');
-                    const { data, error } = await supabase.from('cargos').select('*');
+                    const { data, error } = await supabaseClient.from('cargos').select('*');
                     if (error) throw error;
                     positions = data;
                     AppState.setPositions(positions);
@@ -1713,7 +1717,7 @@
                 
                 if (!applications || applications.length === 0) {
                     console.log('Cargando datos de postulaciones...');
-                    const { data, error } = await supabase.from('postulaciones').select('*');
+                    const { data, error } = await supabaseClient.from('postulaciones').select('*');
                     if (error) throw error;
                     applications = data;
                     AppState.setApplications(applications);
@@ -1721,7 +1725,7 @@
                 
                 if (!evaluations || evaluations.length === 0) {
                     console.log('Cargando datos de evaluaciones...');
-                    const { data, error } = await supabase.from('evaluaciones').select('*');
+                    const { data, error } = await supabaseClient.from('evaluaciones').select('*');
                     if (error) throw error;
                     evaluations = data;
                     AppState.setEvaluations(evaluations);

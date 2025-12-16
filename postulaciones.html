@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantenedor de Postulaciones</title>
+    
+    <!-- Google Fonts: Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js para visualizaciones -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- jsPDF para generación de reportes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- SheetJS para exportar a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* --- Variables de Diseño y Estilos Globales --- */
+        :root {
+            --primary-color: #003366; /* Azul Oscuro */
+            --secondary-color: #0055a4; /* Azul Claro */
+            --accent-color: #ffcc00; /* Amarillo/Dorado Chileno */
+            --light-gray: #f4f7f6;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --font-family: 'Roboto', sans-serif;
+            --critical-color: #d32f2f; /* Rojo para alertas */
+            --warning-color: #f57c00; /* Naranja para advertencias */
+            --success-color: #388e3c;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- Estilos para la aplicación principal --- */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* --- Sidebar de Navegación --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--secondary-color);
+            padding-bottom: 20px;
+        }
+
+        .sidebar-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .nav-menu a {
+            display: block;
+            color: var(--white);
+            text-decoration: none;
+            padding: 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background-color: var(--secondary-color);
+        }
+
+        /* --- Contenido Principal --- */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            background-color: var(--white);
+            padding: 15px 30px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .content-area {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none; /* Ocultar todo por defecto */
+        }
+
+        .tab-content.active {
+            display: block; /* Mostrar la pestaña activa */
+        }
+
+        /* --- Estilos del Dashboard --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .kpi-card h3 {
+            margin: 0 0 10px;
+            color: var(--secondary-color);
+        }
+
+        .kpi-card .number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .chart-container {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .chart-container h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 10px;
+        }
+
+        /* --- NUEVAS CLASES PARA CONTROLAR LA ALTURA DE LOS GRÁFICOS DIRECTAMENTE EN EL CANVAS --- */
+        .canvas-small {
+            height: 220px !important; /* Altura para el gráfico de barras horizontal */
+            width: 100% !important;
+        }
+        .canvas-medium {
+            height: 300px !important; /* Altura para el gráfico de barras apiladas */
+            width: 100% !important;
+        }
+
+        /* --- Estilos de Búsqueda y Candidatos --- */
+        .search-filters {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-filters input, .search-filters select {
+            padding: 10px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-family: var(--font-family);
+        }
+        .search-filters button {
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        .search-filters button:hover {
+            background-color: var(--primary-color);
+        }
+
+        /* --- Estilos para el Mantenedor de Postulaciones --- */
+        .crud-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .crud-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--white);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        
+        .crud-table th, .crud-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .crud-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+        
+        .crud-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .crud-table tr:hover {
+            background-color: var(--light-gray);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-view {
+            background-color: var(--secondary-color);
+            color: var(--white);
+        }
+        
+        .btn-edit {
+            background-color: var(--warning-color);
+            color: var(--white);
+        }
+        
+        .btn-delete {
+            background-color: var(--critical-color);
+            color: var(--white);
+        }
+        
+        .btn-add {
+            background-color: var(--success-color);
+            color: var(--white);
+            padding: 10px 20px;
+            font-weight: 500;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-add:hover {
+            background-color: #2e7d32;
+        }
+        
+        /* --- Modal para Formulario de Postulación --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: var(--white);
+            margin: 5% auto;
+            padding: 30px;
+            border: none;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .close {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: var(--dark-gray);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .modal-header {
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--dark-gray);
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+            font-family: var(--font-family);
+        }
+        
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 85, 164, 0.2);
+        }
+        
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .btn-cancel {
+            background-color: var(--medium-gray);
+            color: var(--dark-gray);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-save {
+            background-color: var(--success-color);
+            color: var(--white);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        /* --- Estilos para carga de datos --- */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.2em;
+            color: var(--secondary-color);
+        }
+        
+        .error-message {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid var(--critical-color);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            color: var(--critical-color);
+        }
+        
+        .success-message {
+            background-color: rgba(56, 142, 60, 0.1);
+            border: 1px solid var(--success-color);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            color: var(--success-color);
+        }
+        
+        /* Pagination styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            background-color: var(--white);
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border-color: var(--secondary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor de la Aplicación Principal -->
+    <div class="app-container">
+        <!-- Sidebar de Navegación -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Mantenedor de Postulaciones</h1>
+                <p>Gobierno 2026</p>
+            </div>
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-link active" onclick="showTab(event, 'dashboard')">📊 Dashboard</a>
+                <a href="#applications" class="nav-link" onclick="showTab(event, 'applications')">📋 Postulaciones</a>
+                <a href="#candidates" class="nav-link" onclick="showTab(event, 'candidates')">👥 Candidatos</a>
+                <a href="#positions" class="nav-link" onclick="showTab(event, 'positions')">🏢 Cargos</a>
+            </nav>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <div class="top-bar">
+                <h2>Sistema de Gestión de Postulaciones</h2>
+                <div class="user-info">
+                    <span>admin@gobierno.cl</span>
+                </div>
+            </div>
+            
+            <div class="content-area">
+
+                <!-- PESTAÑA: DASHBOARD -->
+                <div id="dashboard" class="tab-content active">
+                    <div class="dashboard-grid">
+                        <div class="kpi-card">
+                            <h3>Total Postulaciones</h3>
+                            <div class="number" id="totalApplications">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Candidatos Activos</h3>
+                            <div class="number" id="activeCandidates">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Cargos Disponibles</h3>
+                            <div class="number" id="availablePositions">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Postulaciones Hoy</h3>
+                            <div class="number" id="todayApplications">-</div>
+                        </div>
+                    </div>
+
+                    <!-- GRÁFICO 1: BARRAS HORIZONTALES CON CLASE EN EL CANVAS -->
+                    <div class="chart-container">
+                        <h2>Postulaciones por Partido Político</h2>
+                        <canvas id="partyChart" class="canvas-small"></canvas>
+                    </div>
+
+                    <!-- GRÁFICO 2: BARRAS APILADAS CON CLASE EN EL CANVAS -->
+                    <div class="chart-container">
+                        <h2>Estado de Postulaciones por Nivel Jerárquico</h2>
+                        <canvas id="statusChart" class="canvas-medium"></canvas>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: MANTENEDOR DE POSTULACIONES -->
+                <div id="applications" class="tab-content">
+                    <div class="crud-actions">
+                        <h2>Mantenedor de Postulaciones</h2>
+                        <button class="btn-add" onclick="openAddModal()">Nueva Postulación</button>
+                    </div>
+                    
+                    <div class="search-filters">
+                        <input type="text" id="searchInput" placeholder="Buscar por candidato o cargo..." style="flex-grow: 1;">
+                        <select id="statusFilter">
+                            <option value="">Todos los Estados</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_revision">En Revisión</option>
+                            <option value="aprobada">Aprobada</option>
+                            <option value="rechazada">Rechazada</option>
+                        </select>
+                        <select id="partyFilter">
+                            <option value="">Todos los Partidos</option>
+                        </select>
+                        <button onclick="applyFilters()">Aplicar Filtros</button>
+                    </div>
+
+                    <div id="applicationsLoading" class="loading">Cargando postulaciones...</div>
+                    <div id="applicationsError" class="error-message" style="display: none;"></div>
+                    
+                    <table class="crud-table" id="applicationsTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Candidato</th>
+                                <th>Cargo</th>
+                                <th>Partido Político</th>
+                                <th>Fecha Postulación</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="applicationsTableBody">
+                            <!-- Las filas se generarán dinámicamente -->
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination" id="applicationsPagination" style="display: none;">
+                        <!-- Paginación se generará dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: CANDIDATOS -->
+                <div id="candidates" class="tab-content">
+                    <h2>Lista de Candidatos</h2>
+                    
+                    <div class="search-filters">
+                        <input type="text" id="candidateSearchInput" placeholder="Buscar por nombre o RUT..." style="flex-grow: 1;">
+                        <select id="candidatePartyFilter">
+                            <option value="">Todos los Partidos</option>
+                        </select>
+                        <button onclick="applyCandidateFilters()">Aplicar Filtros</button>
+                    </div>
+
+                    <div id="candidatesLoading" class="loading">Cargando candidatos...</div>
+                    <div id="candidatesError" class="error-message" style="display: none;"></div>
+                    
+                    <table class="crud-table" id="candidatesTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre Completo</th>
+                                <th>RUT</th>
+                                <th>Partido Político</th>
+                                <th>Email</th>
+                                <th>Teléfono</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidatesTableBody">
+                            <!-- Las filas se generarán dinámicamente -->
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination" id="candidatesPagination" style="display: none;">
+                        <!-- Paginación se generará dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: CARGOS -->
+                <div id="positions" class="tab-content">
+                    <div class="crud-actions">
+                        <h2>Mantenedor de Cargos</h2>
+                        <button class="btn-add" onclick="openAddPositionModal()">Nuevo Cargo</button>
+                    </div>
+                    
+                    <div class="search-filters">
+                        <input type="text" id="positionSearchInput" placeholder="Buscar por nombre..." style="flex-grow: 1;">
+                        <select id="levelFilter">
+                            <option value="">Todos los Niveles</option>
+                            <option value="Ministro">Ministro</option>
+                            <option value="Subsecretario">Subsecretario</option>
+                            <option value="Seremi">Seremi</option>
+                        </select>
+                        <select id="ministryFilter">
+                            <option value="">Todos los Ministerios</option>
+                        </select>
+                        <button onclick="applyPositionFilters()">Aplicar Filtros</button>
+                    </div>
+
+                    <div id="positionsLoading" class="loading">Cargando cargos...</div>
+                    <div id="positionsError" class="error-message" style="display: none;"></div>
+                    
+                    <table class="crud-table" id="positionsTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre del Cargo</th>
+                                <th>Nivel Jerárquico</th>
+                                <th>Ministerio/Servicio</th>
+                                <th>Región</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionsTableBody">
+                            <!-- Las filas se generarán dinámicamente -->
+                        </tbody>
+                    </table>
+                    
+                    <div class="pagination" id="positionsPagination" style="display: none;">
+                        <!-- Paginación se generará dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Formulario de Postulación -->
+    <div id="applicationModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('applicationModal')">&times;</span>
+            <div class="modal-header">
+                <h2 id="applicationModalTitle">Nueva Postulación</h2>
+            </div>
+            <form id="applicationForm">
+                <div class="form-group">
+                    <label for="candidateSelect">Candidato</label>
+                    <select id="candidateSelect" required>
+                        <option value="">Seleccione un candidato</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="positionSelect">Cargo</label>
+                    <select id="positionSelect" required>
+                        <option value="">Seleccione un cargo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="applicationStatus">Estado</label>
+                    <select id="applicationStatus" required>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="en_revision">En Revisión</option>
+                        <option value="aprobada">Aprobada</option>
+                        <option value="rechazada">Rechazada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="applicationDate">Fecha de Postulación</label>
+                    <input type="date" id="applicationDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="isMainApplication">¿Es postulación principal?</label>
+                    <select id="isMainApplication" required>
+                        <option value="true">Sí</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="applicationNotes">Notas</label>
+                    <textarea id="applicationNotes"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal('applicationModal')">Cancelar</button>
+                    <button type="submit" class="btn-save">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Formulario de Cargo -->
+    <div id="positionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('positionModal')">&times;</span>
+            <div class="modal-header">
+                <h2 id="positionModalTitle">Nuevo Cargo</h2>
+            </div>
+            <form id="positionForm">
+                <div class="form-group">
+                    <label for="positionName">Nombre del Cargo</label>
+                    <input type="text" id="positionName" required>
+                </div>
+                <div class="form-group">
+                    <label for="positionDescription">Descripción</label>
+                    <textarea id="positionDescription"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="positionLevel">Nivel Jerárquico</label>
+                    <select id="positionLevel" required>
+                        <option value="Ministro">Ministro</option>
+                        <option value="Subsecretario">Subsecretario</option>
+                        <option value="Seremi">Seremi</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="positionMinistry">Ministerio/Servicio</label>
+                    <input type="text" id="positionMinistry">
+                </div>
+                <div class="form-group">
+                    <label for="positionRegion">Región</label>
+                    <input type="text" id="positionRegion">
+                </div>
+                <div class="form-group">
+                    <label for="positionStatus">Estado</label>
+                    <select id="positionStatus" required>
+                        <option value="disponible">Disponible</option>
+                        <option value="ocupado">Ocupado</option>
+                        <option value="por_definir">Por Definir</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal('positionModal')">Cancelar</button>
+                    <button type="submit" class="btn-save">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+        
+        // Inicializar cliente de Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Variables globales para las instancias de los gráficos
+        let partyChartInstance = null;
+        let statusChartInstance = null;
+        
+        // Variables globales para el estado de la aplicación
+        let currentTab = 'dashboard';
+        let applications = [];
+        let candidates = [];
+        let positions = [];
+        let parties = [];
+        let currentApplicationId = null;
+        let currentPositionId = null;
+        
+        // Configuración de paginación
+        const pagination = {
+            applications: {
+                page: 1,
+                pageSize: 10,
+                totalPages: 0,
+                totalItems: 0
+            },
+            candidates: {
+                page: 1,
+                pageSize: 10,
+                totalPages: 0,
+                totalItems: 0
+            },
+            positions: {
+                page: 1,
+                pageSize: 10,
+                totalPages: 0,
+                totalItems: 0
+            }
+        };
+        
+        // Configuración de filtros
+        const filters = {
+            applications: {
+                searchTerm: '',
+                status: '',
+                partyId: ''
+            },
+            candidates: {
+                searchTerm: '',
+                partyId: ''
+            },
+            positions: {
+                searchTerm: '',
+                level: '',
+                ministry: ''
+            }
+        };
+        
+        // --- Funciones de Utilidad ---
+        
+        // Función para mostrar notificaciones
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            
+            const currentTabElement = document.getElementById(currentTab);
+            currentTabElement.insertBefore(messageDiv, currentTabElement.firstChild);
+            
+            // Eliminar el mensaje después de 5 segundos
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+        
+        // Función para validar datos
+        function validateData(data, type) {
+            if (!data) return null;
+            
+            switch(type) {
+                case 'number':
+                    return isNaN(data) ? 0 : parseFloat(data);
+                case 'string':
+                    return typeof data === 'string' ? data : String(data);
+                case 'array':
+                    return Array.isArray(data) ? data : [];
+                case 'object':
+                    return typeof data === 'object' && data !== null ? data : {};
+                default:
+                    return data;
+            }
+        }
+        
+        // --- Lógica de Pestañas y Gráficos ---
+        function showTab(event, tabName) {
+            var i, tabcontent, navlinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            navlinks = document.getElementsByClassName("nav-link");
+            for (i = 0; i < navlinks.length; i++) {
+                navlinks[i].classList.remove("active");
+            }
+
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+            
+            // Actualizar estado
+            currentTab = tabName;
+
+            // Cargar datos según la pestaña activa
+            if (tabName === 'dashboard') {
+                if (!partyChartInstance) initializeDashboard();
+                else { 
+                    partyChartInstance.resize(); 
+                    statusChartInstance.resize(); 
+                }
+            } else if (tabName === 'applications') {
+                loadApplications();
+            } else if (tabName === 'candidates') {
+                loadCandidates();
+            } else if (tabName === 'positions') {
+                loadPositions();
+            }
+        }
+        
+        // Función para cargar datos iniciales
+        async function loadInitialData() {
+            try {
+                console.log('Cargando datos iniciales...');
+                
+                // Cargar partidos políticos
+                console.log('Cargando partidos...');
+                const { data: partiesData, error: partiesError } = await supabase
+                    .from('partidos_politicos')
+                    .select('*');
+                
+                if (partiesError) throw partiesError;
+                parties = partiesData;
+                console.log('Partidos cargados:', parties.length);
+                
+                // Cargar candidatos
+                console.log('Cargando candidatos...');
+                const { data: candidatesData, error: candidatesError } = await supabase
+                    .from('candidatos')
+                    .select('*');
+                
+                if (candidatesError) throw candidatesError;
+                candidates = candidatesData;
+                console.log('Candidatos cargados:', candidates.length);
+                
+                // Cargar cargos
+                console.log('Cargando cargos...');
+                const { data: positionsData, error: positionsError } = await supabase
+                    .from('cargos')
+                    .select('*');
+                
+                if (positionsError) throw positionsError;
+                positions = positionsData;
+                console.log('Cargos cargados:', positions.length);
+                
+                // Cargar postulaciones
+                console.log('Cargando postulaciones...');
+                const { data: applicationsData, error: applicationsError } = await supabase
+                    .from('postulaciones')
+                    .select('*');
+                
+                if (applicationsError) throw applicationsError;
+                applications = applicationsData;
+                console.log('Postulaciones cargadas:', applications.length);
+                
+                // Inicializar dashboard
+                initializeDashboard();
+                
+                // Actualizar filtros
+                updateFilters();
+                
+            } catch (error) {
+                console.error('Error al cargar datos iniciales:', error);
+                showMessage('Error al cargar los datos: ' + error.message, 'error');
+            }
+        }
+        
+        // Función para inicializar el dashboard
+        function initializeDashboard() {
+            console.log('Inicializando dashboard...');
+            
+            // KPI: Total postulaciones
+            document.getElementById('totalApplications').textContent = applications.length;
+            
+            // KPI: Candidatos activos
+            document.getElementById('activeCandidates').textContent = candidates.length;
+            
+            // KPI: Cargos disponibles
+            const availablePositions = positions.filter(p => p.estado_cargo === 'disponible').length;
+            document.getElementById('availablePositions').textContent = availablePositions;
+            
+            // KPI: Postulaciones hoy
+            const today = new Date().toISOString().split('T')[0];
+            const todayApplications = applications.filter(a => a.fecha_postulacion === today).length;
+            document.getElementById('todayApplications').textContent = todayApplications;
+            
+            // Inicializar gráficos
+            initializeCharts();
+        }
+        
+        function initializeCharts() {
+            console.log('Inicializando gráficos...');
+            
+            if (partyChartInstance) partyChartInstance.destroy();
+            if (statusChartInstance) statusChartInstance.destroy();
+            
+            /* ===============================
+            GRÁFICO 1: Postulaciones por partido
+            =============================== */
+            
+            const partyCtx = document.getElementById('partyChart').getContext('2d');
+            
+            // Contar postulaciones por partido
+            const partyLabels = parties.map(p => p.nombre_partido);
+            const partyData = parties.map(p => {
+                // Contar candidatos de este partido
+                const partyCandidates = candidates.filter(c => c.id_partido === p.id_partido);
+                const candidateIds = partyCandidates.map(c => c.id_candidato);
+                
+                // Contar postulaciones de estos candidatos
+                return applications.filter(a => candidateIds.includes(a.id_candidato)).length;
+            });
+            
+            partyChartInstance = new Chart(partyCtx, {
+                type: 'bar',
+                data: {
+                    labels: partyLabels,
+                    datasets: [{
+                        data: partyData,
+                        label: 'Postulaciones',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { beginAtZero: true }
+                    }
+                }
+            });
+            
+            /* =====================================
+            GRÁFICO 2: Estado de postulaciones por nivel
+            ===================================== */
+            
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            
+            // Agrupar postulaciones por nivel y estado
+            const levels = {};
+            
+            positions.forEach(pos => {
+                const level = pos.nivel_jerarquico || 'Sin nivel';
+                
+                if (!levels[level]) {
+                    levels[level] = { 
+                        pendiente: 0, 
+                        en_revision: 0, 
+                        aprobada: 0, 
+                        rechazada: 0 
+                    };
+                }
+                
+                // Contar postulaciones para este cargo
+                const positionApplications = applications.filter(a => a.id_cargo === pos.id_cargo);
+                
+                positionApplications.forEach(app => {
+                    if (app.estado_postulacion && levels[level][app.estado_postulacion] !== undefined) {
+                        levels[level][app.estado_postulacion]++;
+                    }
+                });
+            });
+            
+            const labels = Object.keys(levels);
+            const pendingData = labels.map(l => levels[l].pendiente);
+            const reviewData = labels.map(l => levels[l].en_revision);
+            const approvedData = labels.map(l => levels[l].aprobada);
+            const rejectedData = labels.map(l => levels[l].rechazada);
+            
+            statusChartInstance = new Chart(statusCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Pendiente', data: pendingData, backgroundColor: '#ffcc00' },
+                        { label: 'En Revisión', data: reviewData, backgroundColor: '#2196F3' },
+                        { label: 'Aprobada', data: approvedData, backgroundColor: '#4CAF50' },
+                        { label: 'Rechazada', data: rejectedData, backgroundColor: '#F44336' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true }
+                    }
+                }
+            });
+        }
+        
+        // --- Funciones para el Mantenedor de Postulaciones ---
+        
+        async function loadApplications() {
+            const loading = document.getElementById('applicationsLoading');
+            const table = document.getElementById('applicationsTable');
+            const tableBody = document.getElementById('applicationsTableBody');
+            const paginationEl = document.getElementById('applicationsPagination');
+            const errorEl = document.getElementById('applicationsError');
+            
+            try {
+                loading.style.display = 'flex';
+                table.style.display = 'none';
+                errorEl.style.display = 'none';
+                
+                // Construir consulta con filtros
+                let query = supabase
+                    .from('postulaciones')
+                    .select(`
+                        *,
+                        candidatos(id_candidato, nombres, apellido_paterno, apellido_materno, id_partido),
+                        cargos(id_cargo, nombre_cargo, nivel_jerarquico)
+                    `, { count: 'exact' });
+                
+                // Aplicar filtros
+                if (filters.applications.status) {
+                    query = query.eq('estado_postulacion', filters.applications.status);
+                }
+                
+                if (filters.applications.searchTerm) {
+                    query = query.or(`candidatos.nombres.ilike.%${filters.applications.searchTerm}%,candidatos.apellido_paterno.ilike.%${filters.applications.searchTerm}%,cargos.nombre_cargo.ilike.%${filters.applications.searchTerm}%`);
+                }
+                
+                if (filters.applications.partyId) {
+                    query = query.eq('candidatos.id_partido', filters.applications.partyId);
+                }
+                
+                // Paginación
+                const from = (pagination.applications.page - 1) * pagination.applications.pageSize;
+                const to = from + pagination.applications.pageSize - 1;
+                query = query.range(from, to);
+                
+                const { data, count, error } = await query;
+                
+                if (error) throw error;
+                
+                pagination.applications.totalItems = count;
+                pagination.applications.totalPages = Math.ceil(count / pagination.applications.pageSize);
+                
+                // Limpiar tabla
+                tableBody.innerHTML = '';
+                
+                // Llenar tabla con datos
+                data.forEach(application => {
+                    const row = document.createElement('tr');
+                    
+                    // Obtener nombre del partido
+                    const party = parties.find(p => p.id_partido === application.candidatos.id_partido);
+                    const partyName = party ? party.nombre_partido : 'Sin partido';
+                    
+                    // Formatear fecha
+                    const applicationDate = new Date(application.fecha_postulacion).toLocaleDateString();
+                    
+                    // Determinar clase de estado
+                    let statusClass = '';
+                    switch (application.estado_postulacion) {
+                        case 'pendiente':
+                            statusClass = 'badge-warning';
+                            break;
+                        case 'en_revision':
+                            statusClass = 'badge-info';
+                            break;
+                        case 'aprobada':
+                            statusClass = 'badge-success';
+                            break;
+                        case 'rechazada':
+                            statusClass = 'badge-danger';
+                            break;
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${application.id_postulacion}</td>
+                        <td>${application.candidatos.nombres} ${application.candidatos.apellido_paterno}</td>
+                        <td>${application.cargos.nombre_cargo}</td>
+                        <td>${partyName}</td>
+                        <td>${applicationDate}</td>
+                        <td><span class="badge ${statusClass}">${application.estado_postulacion}</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-view" onclick="viewApplication(${application.id_postulacion})">Ver</button>
+                                <button class="btn btn-edit" onclick="editApplication(${application.id_postulacion})">Editar</button>
+                                <button class="btn btn-delete" onclick="deleteApplication(${application.id_postulacion})">Eliminar</button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // Crear controles de paginación
+                createPagination('applications');
+                
+                loading.style.display = 'none';
+                table.style.display = 'table';
+                paginationEl.style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error al cargar postulaciones:', error);
+                loading.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.textContent = 'Error al cargar las postulaciones: ' + error.message;
+            }
+        }
+        
+        async function loadCandidates() {
+            const loading = document.getElementById('candidatesLoading');
+            const table = document.getElementById('candidatesTable');
+            const tableBody = document.getElementById('candidatesTableBody');
+            const paginationEl = document.getElementById('candidatesPagination');
+            const errorEl = document.getElementById('candidatesError');
+            
+            try {
+                loading.style.display = 'flex';
+                table.style.display = 'none';
+                errorEl.style.display = 'none';
+                
+                // Construir consulta con filtros
+                let query = supabase
+                    .from('candidatos')
+                    .select(`
+                        *,
+                        partidos_politicos(nombre_partido)
+                    `, { count: 'exact' });
+                
+                // Aplicar filtros
+                if (filters.candidates.searchTerm) {
+                    query = query.or(`nombres.ilike.%${filters.candidates.searchTerm}%,apellido_paterno.ilike.%${filters.candidates.searchTerm}%,rut.ilike.%${filters.candidates.searchTerm}%`);
+                }
+                
+                if (filters.candidates.partyId) {
+                    query = query.eq('id_partido', filters.candidates.partyId);
+                }
+                
+                // Paginación
+                const from = (pagination.candidates.page - 1) * pagination.candidates.pageSize;
+                const to = from + pagination.candidates.pageSize - 1;
+                query = query.range(from, to);
+                
+                const { data, count, error } = await query;
+                
+                if (error) throw error;
+                
+                pagination.candidates.totalItems = count;
+                pagination.candidates.totalPages = Math.ceil(count / pagination.candidates.pageSize);
+                
+                // Limpiar tabla
+                tableBody.innerHTML = '';
+                
+                // Llenar tabla con datos
+                data.forEach(candidate => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${candidate.id_candidato}</td>
+                        <td>${candidate.nombres} ${candidate.apellido_paterno} ${candidate.apellido_materno || ''}</td>
+                        <td>${candidate.rut}</td>
+                        <td>${candidate.partidos_politicos ? candidate.partidos_politicos.nombre_partido : 'Sin partido'}</td>
+                        <td>${candidate.contacto_email || 'No especificado'}</td>
+                        <td>${candidate.contacto_telefono || 'No especificado'}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-view" onclick="viewCandidate(${candidate.id_candidato})">Ver</button>
+                                <button class="btn btn-edit" onclick="editCandidate(${candidate.id_candidato})">Editar</button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // Crear controles de paginación
+                createPagination('candidates');
+                
+                loading.style.display = 'none';
+                table.style.display = 'table';
+                paginationEl.style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error al cargar candidatos:', error);
+                loading.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.textContent = 'Error al cargar los candidatos: ' + error.message;
+            }
+        }
+        
+        async function loadPositions() {
+            const loading = document.getElementById('positionsLoading');
+            const table = document.getElementById('positionsTable');
+            const tableBody = document.getElementById('positionsTableBody');
+            const paginationEl = document.getElementById('positionsPagination');
+            const errorEl = document.getElementById('positionsError');
+            
+            try {
+                loading.style.display = 'flex';
+                table.style.display = 'none';
+                errorEl.style.display = 'none';
+                
+                // Construir consulta con filtros
+                let query = supabase
+                    .from('cargos')
+                    .select('*', { count: 'exact' });
+                
+                // Aplicar filtros
+                if (filters.positions.searchTerm) {
+                    query = query.ilike('nombre_cargo', `%${filters.positions.searchTerm}%`);
+                }
+                
+                if (filters.positions.level) {
+                    query = query.eq('nivel_jerarquico', filters.positions.level);
+                }
+                
+                if (filters.positions.ministry) {
+                    query = query.eq('ministerio_servicio', filters.positions.ministry);
+                }
+                
+                // Paginación
+                const from = (pagination.positions.page - 1) * pagination.positions.pageSize;
+                const to = from + pagination.positions.pageSize - 1;
+                query = query.range(from, to);
+                
+                const { data, count, error } = await query;
+                
+                if (error) throw error;
+                
+                pagination.positions.totalItems = count;
+                pagination.positions.totalPages = Math.ceil(count / pagination.positions.pageSize);
+                
+                // Limpiar tabla
+                tableBody.innerHTML = '';
+                
+                // Llenar tabla con datos
+                data.forEach(position => {
+                    const row = document.createElement('tr');
+                    
+                    // Determinar clase de estado
+                    let statusClass = '';
+                    switch (position.estado_cargo) {
+                        case 'disponible':
+                            statusClass = 'badge-success';
+                            break;
+                        case 'ocupado':
+                            statusClass = 'badge-info';
+                            break;
+                        case 'por_definir':
+                            statusClass = 'badge-warning';
+                            break;
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${position.id_cargo}</td>
+                        <td>${position.nombre_cargo}</td>
+                        <td>${position.nivel_jerarquico}</td>
+                        <td>${position.ministerio_servicio || 'No especificado'}</td>
+                        <td>${position.region || 'No especificado'}</td>
+                        <td><span class="badge ${statusClass}">${position.estado_cargo}</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-view" onclick="viewPosition(${position.id_cargo})">Ver</button>
+                                <button class="btn btn-edit" onclick="editPosition(${position.id_cargo})">Editar</button>
+                                <button class="btn btn-delete" onclick="deletePosition(${position.id_cargo})">Eliminar</button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // Crear controles de paginación
+                createPagination('positions');
+                
+                loading.style.display = 'none';
+                table.style.display = 'table';
+                paginationEl.style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error al cargar cargos:', error);
+                loading.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.textContent = 'Error al cargar los cargos: ' + error.message;
+            }
+        }
+        
+        // Función para crear controles de paginación
+        function createPagination(type) {
+            const paginationElement = document.getElementById(`${type}Pagination`);
+            paginationElement.innerHTML = '';
+            
+            const paginationData = pagination[type];
+            
+            // Botón anterior
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Anterior';
+            prevButton.disabled = paginationData.page === 1;
+            prevButton.onclick = () => {
+                paginationData.page--;
+                if (type === 'applications') loadApplications();
+                else if (type === 'candidates') loadCandidates();
+                else if (type === 'positions') loadPositions();
+            };
+            paginationElement.appendChild(prevButton);
+            
+            // Números de página
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, paginationData.page - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(paginationData.totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.className = i === paginationData.page ? 'active' : '';
+                pageButton.onclick = () => {
+                    paginationData.page = i;
+                    if (type === 'applications') loadApplications();
+                    else if (type === 'candidates') loadCandidates();
+                    else if (type === 'positions') loadPositions();
+                };
+                paginationElement.appendChild(pageButton);
+            }
+            
+            // Botón siguiente
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Siguiente';
+            nextButton.disabled = paginationData.page === paginationData.totalPages;
+            nextButton.onclick = () => {
+                paginationData.page++;
+                if (type === 'applications') loadApplications();
+                else if (type === 'candidates') loadCandidates();
+                else if (type === 'positions') loadPositions();
+            };
+            paginationElement.appendChild(nextButton);
+        }
+        
+        // Función para actualizar filtros
+        function updateFilters() {
+            // Actualizar filtro de partidos para postulaciones
+            const applicationPartyFilter = document.getElementById('partyFilter');
+            applicationPartyFilter.innerHTML = '<option value="">Todos los Partidos</option>';
+            
+            parties.forEach(party => {
+                const option = document.createElement('option');
+                option.value = party.id_partido;
+                option.textContent = party.nombre_partido;
+                applicationPartyFilter.appendChild(option);
+            });
+            
+            // Actualizar filtro de partidos para candidatos
+            const candidatePartyFilter = document.getElementById('candidatePartyFilter');
+            candidatePartyFilter.innerHTML = '<option value="">Todos los Partidos</option>';
+            
+            parties.forEach(party => {
+                const option = document.createElement('option');
+                option.value = party.id_partido;
+                option.textContent = party.nombre_partido;
+                candidatePartyFilter.appendChild(option);
+            });
+            
+            // Actualizar filtro de ministerios
+            const ministryFilter = document.getElementById('ministryFilter');
+            ministryFilter.innerHTML = '<option value="">Todos los Ministerios</option>';
+            
+            // Extraer ministerios únicos
+            const ministries = [...new Set(positions
+                .filter(p => p.ministerio_servicio)
+                .map(p => p.ministerio_servicio))];
+            
+            ministries.forEach(ministry => {
+                const option = document.createElement('option');
+                option.value = ministry;
+                option.textContent = ministry;
+                ministryFilter.appendChild(option);
+            });
+            
+            // Actualizar selectores en los formularios
+            updateFormSelectors();
+        }
+        
+        // Función para actualizar selectores en formularios
+        function updateFormSelectors() {
+            // Actualizar selector de candidatos
+            const candidateSelect = document.getElementById('candidateSelect');
+            candidateSelect.innerHTML = '<option value="">Seleccione un candidato</option>';
+            
+            candidates.forEach(candidate => {
+                const option = document.createElement('option');
+                option.value = candidate.id_candidato;
+                option.textContent = `${candidate.nombres} ${candidate.apellido_paterno}`;
+                candidateSelect.appendChild(option);
+            });
+            
+            // Actualizar selector de cargos
+            const positionSelect = document.getElementById('positionSelect');
+            positionSelect.innerHTML = '<option value="">Seleccione un cargo</option>';
+            
+            positions.forEach(position => {
+                const option = document.createElement('option');
+                option.value = position.id_cargo;
+                option.textContent = position.nombre_cargo;
+                positionSelect.appendChild(option);
+            });
+        }
+        
+        // Funciones para aplicar filtros
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            const partyId = document.getElementById('partyFilter').value;
+            
+            filters.applications = {
+                searchTerm,
+                status,
+                partyId
+            };
+            
+            // Resetear paginación
+            pagination.applications.page = 1;
+            
+            // Recargar postulaciones con filtros
+            loadApplications();
+        }
+        
+        function applyCandidateFilters() {
+            const searchTerm = document.getElementById('candidateSearchInput').value.toLowerCase();
+            const partyId = document.getElementById('candidatePartyFilter').value;
+            
+            filters.candidates = {
+                searchTerm,
+                partyId
+            };
+            
+            // Resetear paginación
+            pagination.candidates.page = 1;
+            
+            // Recargar candidatos con filtros
+            loadCandidates();
+        }
+        
+        function applyPositionFilters() {
+            const searchTerm = document.getElementById('positionSearchInput').value.toLowerCase();
+            const level = document.getElementById('levelFilter').value;
+            const ministry = document.getElementById('ministryFilter').value;
+            
+            filters.positions = {
+                searchTerm,
+                level,
+                ministry
+            };
+            
+            // Resetear paginación
+            pagination.positions.page = 1;
+            
+            // Recargar cargos con filtros
+            loadPositions();
+        }
+        
+        // --- Funciones para el CRUD de Postulaciones ---
+        
+        function openAddModal() {
+            currentApplicationId = null;
+            document.getElementById('applicationModalTitle').textContent = 'Nueva Postulación';
+            document.getElementById('applicationForm').reset();
+            
+            // Establecer fecha actual por defecto
+            document.getElementById('applicationDate').value = new Date().toISOString().split('T')[0];
+            
+            document.getElementById('applicationModal').style.display = 'block';
+        }
+        
+        async function editApplication(id) {
+            currentApplicationId = id;
+            document.getElementById('applicationModalTitle').textContent = 'Editar Postulación';
+            
+            try {
+                // Obtener datos de la postulación
+                const { data, error } = await supabase
+                    .from('postulaciones')
+                    .select('*')
+                    .eq('id_postulacion', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Llenar formulario con datos
+                document.getElementById('candidateSelect').value = data.id_candidato;
+                document.getElementById('positionSelect').value = data.id_cargo;
+                document.getElementById('applicationStatus').value = data.estado_postulacion;
+                document.getElementById('applicationDate').value = data.fecha_postulacion;
+                document.getElementById('isMainApplication').value = data.postulacion_principal ? 'true' : 'false';
+                document.getElementById('applicationNotes').value = data.notas || '';
+                
+                document.getElementById('applicationModal').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error al cargar postulación:', error);
+                showMessage('Error al cargar la postulación: ' + error.message, 'error');
+            }
+        }
+        
+        async function viewApplication(id) {
+            try {
+                // Obtener datos detallados de la postulación
+                const { data, error } = await supabase
+                    .from('postulaciones')
+                    .select(`
+                        *,
+                        candidatos(*, partidos_politicos(*)),
+                        cargos(*)
+                    `)
+                    .eq('id_postulacion', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Crear un modal de visualización simple
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                
+                const modalContent = document.createElement('div');
+                modalContent.className = 'modal-content';
+                
+                // Formatear fecha
+                const applicationDate = new Date(data.fecha_postulacion).toLocaleDateString();
+                
+                modalContent.innerHTML = `
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                    <div class="modal-header">
+                        <h2>Detalles de Postulación</h2>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Postulación</label>
+                        <input type="text" value="${data.id_postulacion}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Candidato</label>
+                        <input type="text" value="${data.candidatos.nombres} ${data.candidatos.apellido_paterno}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Partido Político</label>
+                        <input type="text" value="${data.candidatos.partidos_politicos.nombre_partido}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Cargo</label>
+                        <input type="text" value="${data.cargos.nombre_cargo}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Nivel Jerárquico</label>
+                        <input type="text" value="${data.cargos.nivel_jerarquico}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <input type="text" value="${data.estado_postulacion}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Postulación</label>
+                        <input type="text" value="${applicationDate}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Postulación Principal</label>
+                        <input type="text" value="${data.postulacion_principal ? 'Sí' : 'No'}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <textarea readonly>${data.notas || 'Sin notas'}</textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="this.closest('.modal').remove()">Cerrar</button>
+                    </div>
+                `;
+                
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Error al cargar detalles de postulación:', error);
+                showMessage('Error al cargar los detalles: ' + error.message, 'error');
+            }
+        }
+        
+        async function deleteApplication(id) {
+            if (!confirm('¿Está seguro de que desea eliminar esta postulación?')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('postulaciones')
+                    .delete()
+                    .eq('id_postulacion', id);
+                
+                if (error) throw error;
+                
+                showMessage('Postulación eliminada correctamente');
+                loadApplications();
+                
+            } catch (error) {
+                console.error('Error al eliminar postulación:', error);
+                showMessage('Error al eliminar la postulación: ' + error.message, 'error');
+            }
+        }
+        
+        // Manejar envío del formulario de postulación
+        document.getElementById('applicationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const formData = {
+                    id_candidato: document.getElementById('candidateSelect').value,
+                    id_cargo: document.getElementById('positionSelect').value,
+                    estado_postulacion: document.getElementById('applicationStatus').value,
+                    fecha_postulacion: document.getElementById('applicationDate').value,
+                    postulacion_principal: document.getElementById('isMainApplication').value === 'true',
+                    notas: document.getElementById('applicationNotes').value
+                };
+                
+                if (currentApplicationId) {
+                    // Actualizar postulación existente
+                    const { error } = await supabase
+                        .from('postulaciones')
+                        .update(formData)
+                        .eq('id_postulacion', currentApplicationId);
+                    
+                    if (error) throw error;
+                    
+                    showMessage('Postulación actualizada correctamente');
+                } else {
+                    // Crear nueva postulación
+                    const { error } = await supabase
+                        .from('postulaciones')
+                        .insert(formData);
+                    
+                    if (error) throw error;
+                    
+                    showMessage('Postulación creada correctamente');
+                }
+                
+                // Cerrar modal y recargar datos
+                closeModal('applicationModal');
+                loadApplications();
+                
+            } catch (error) {
+                console.error('Error al guardar postulación:', error);
+                showMessage('Error al guardar la postulación: ' + error.message, 'error');
+            }
+        });
+        
+        // --- Funciones para el CRUD de Cargos ---
+        
+        function openAddPositionModal() {
+            currentPositionId = null;
+            document.getElementById('positionModalTitle').textContent = 'Nuevo Cargo';
+            document.getElementById('positionForm').reset();
+            document.getElementById('positionModal').style.display = 'block';
+        }
+        
+        async function editPosition(id) {
+            currentPositionId = id;
+            document.getElementById('positionModalTitle').textContent = 'Editar Cargo';
+            
+            try {
+                // Obtener datos del cargo
+                const { data, error } = await supabase
+                    .from('cargos')
+                    .select('*')
+                    .eq('id_cargo', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Llenar formulario con datos
+                document.getElementById('positionName').value = data.nombre_cargo;
+                document.getElementById('positionDescription').value = data.descripcion_cargo || '';
+                document.getElementById('positionLevel').value = data.nivel_jerarquico;
+                document.getElementById('positionMinistry').value = data.ministerio_servicio || '';
+                document.getElementById('positionRegion').value = data.region || '';
+                document.getElementById('positionStatus').value = data.estado_cargo;
+                
+                document.getElementById('positionModal').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error al cargar cargo:', error);
+                showMessage('Error al cargar el cargo: ' + error.message, 'error');
+            }
+        }
+        
+        async function viewPosition(id) {
+            try {
+                // Obtener datos del cargo
+                const { data, error } = await supabase
+                    .from('cargos')
+                    .select('*')
+                    .eq('id_cargo', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Crear un modal de visualización simple
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                
+                const modalContent = document.createElement('div');
+                modalContent.className = 'modal-content';
+                
+                modalContent.innerHTML = `
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                    <div class="modal-header">
+                        <h2>Detalles del Cargo</h2>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Cargo</label>
+                        <input type="text" value="${data.id_cargo}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre del Cargo</label>
+                        <input type="text" value="${data.nombre_cargo}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea readonly>${data.descripcion_cargo || 'Sin descripción'}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Nivel Jerárquico</label>
+                        <input type="text" value="${data.nivel_jerarquico}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Ministerio/Servicio</label>
+                        <input type="text" value="${data.ministerio_servicio || 'No especificado'}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Región</label>
+                        <input type="text" value="${data.region || 'No especificado'}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <input type="text" value="${data.estado_cargo}" readonly>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="this.closest('.modal').remove()">Cerrar</button>
+                    </div>
+                `;
+                
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Error al cargar detalles del cargo:', error);
+                showMessage('Error al cargar los detalles: ' + error.message, 'error');
+            }
+        }
+        
+        async function deletePosition(id) {
+            if (!confirm('¿Está seguro de que desea eliminar este cargo?')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('cargos')
+                    .delete()
+                    .eq('id_cargo', id);
+                
+                if (error) throw error;
+                
+                showMessage('Cargo eliminado correctamente');
+                loadPositions();
+                
+            } catch (error) {
+                console.error('Error al eliminar cargo:', error);
+                showMessage('Error al eliminar el cargo: ' + error.message, 'error');
+            }
+        }
+        
+        // Manejar envío del formulario de cargo
+        document.getElementById('positionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                const formData = {
+                    nombre_cargo: document.getElementById('positionName').value,
+                    descripcion_cargo: document.getElementById('positionDescription').value,
+                    nivel_jerarquico: document.getElementById('positionLevel').value,
+                    ministerio_servicio: document.getElementById('positionMinistry').value,
+                    region: document.getElementById('positionRegion').value,
+                    estado_cargo: document.getElementById('positionStatus').value
+                };
+                
+                if (currentPositionId) {
+                    // Actualizar cargo existente
+                    const { error } = await supabase
+                        .from('cargos')
+                        .update(formData)
+                        .eq('id_cargo', currentPositionId);
+                    
+                    if (error) throw error;
+                    
+                    showMessage('Cargo actualizado correctamente');
+                } else {
+                    // Crear nuevo cargo
+                    const { error } = await supabase
+                        .from('cargos')
+                        .insert(formData);
+                    
+                    if (error) throw error;
+                    
+                    showMessage('Cargo creado correctamente');
+                }
+                
+                // Cerrar modal y recargar datos
+                closeModal('positionModal');
+                loadPositions();
+                
+            } catch (error) {
+                console.error('Error al guardar cargo:', error);
+                showMessage('Error al guardar el cargo: ' + error.message, 'error');
+            }
+        });
+        
+        // --- Funciones para ver/editar candidatos (solo visualización) ---
+        
+        async function viewCandidate(id) {
+            try {
+                // Obtener datos del candidato
+                const { data, error } = await supabase
+                    .from('candidatos')
+                    .select(`
+                        *,
+                        partidos_politicos(*)
+                    `)
+                    .eq('id_candidato', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Crear un modal de visualización simple
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                
+                const modalContent = document.createElement('div');
+                modalContent.className = 'modal-content';
+                
+                modalContent.innerHTML = `
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                    <div class="modal-header">
+                        <h2>Detalles del Candidato</h2>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Candidato</label>
+                        <input type="text" value="${data.id_candidato}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" value="${data.nombres} ${data.apellido_paterno} ${data.apellido_materno || ''}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>RUT</label>
+                        <input type="text" value="${data.rut}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Partido Político</label>
+                        <input type="text" value="${data.partidos_politicos.nombre_partido}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="text" value="${data.contacto_email || 'No especificado'}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" value="${data.contacto_telefono || 'No especificado'}" readonly>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="this.closest('.modal').remove()">Cerrar</button>
+                    </div>
+                `;
+                
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Error al cargar detalles del candidato:', error);
+                showMessage('Error al cargar los detalles: ' + error.message, 'error');
+            }
+        }
+        
+        function editCandidate(id) {
+            // Simplemente mostrar un mensaje indicando que esta función no está implementada
+            showMessage('Función de edición de candidatos no implementada en esta demostración', 'warning');
+        }
+        
+        // --- Funciones para manejo de modales ---
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+        
+        // Cargar datos iniciales al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInitialData();
+        });
+    </script>
+</body>
+</html>
