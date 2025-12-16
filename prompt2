@@ -1,0 +1,368 @@
+1️⃣ Autenticación y Contexto
+🔐 Login / Selección de Rol
+
+Objetivo: Seguridad y control de acceso.
+
+Contenido:
+
+Login con email / SSO
+
+Selección de rol (si aplica):
+
+Personero político
+
+Evaluador técnico
+
+Administrador
+
+Equipo decisor
+
+Indicador de partido político (si corresponde)
+
+Último acceso / actividad
+
+2️⃣ Dashboard Principal (Home)
+📊 Dashboard Estratégico
+
+Objetivo: Vista ejecutiva del proceso completo.
+
+Componentes clave:
+
+KPIs principales:
+
+Cargos totales / cubiertos / en evaluación
+
+Candidatos activos
+
+% evaluados por IA
+
+% con evaluación humana
+
+Mapa de gobernabilidad (resumen visual)
+
+Alertas:
+
+Cargos críticos sin candidatos
+
+Evaluaciones pendientes
+
+Filtros rápidos:
+
+Por partido
+
+Por nivel del cargo
+
+Por estado del proceso
+
+Accesos rápidos:
+
+“Evaluar candidatos”
+
+“Ver cargos críticos”
+
+“Reportes”
+
+📌 Diseño: tarjetas, gráficos simples, jerarquía visual clara (no sobrecargar).
+
+3️⃣ Módulo de Cargos
+🏛️ Listado de Cargos
+
+Objetivo: Gestionar los ~3.000 cargos.
+
+Vista tipo tabla avanzada:
+
+Nombre del cargo
+
+Nivel (alto / medio / técnico)
+
+Ámbito (ministerio, servicio, región)
+
+Estado (vacante, en evaluación, asignado)
+
+Nº de postulantes
+
+Semáforo de cobertura (verde/amarillo/rojo)
+
+Funciones:
+
+Filtros avanzados
+
+Ordenamiento
+
+Acciones rápidas:
+
+Ver detalle
+
+Ver candidatos
+
+Generar reporte
+
+📄 Detalle del Cargo
+
+Objetivo: Centro de decisión para cada puesto.
+
+Secciones:
+
+Información general del cargo
+
+Perfil requerido (técnico y político)
+
+Matriz de evaluación asociada
+
+Lista comparativa de candidatos
+
+Ranking IA
+
+Comentarios estratégicos
+
+Historial de decisiones
+
+📌 Aquí se decide, debe ser muy claro y confiable.
+
+4️⃣ Módulo de Candidatos
+👤 Listado de Candidatos
+
+Objetivo: Explorar y filtrar perfiles masivamente.
+
+Contenido:
+
+Nombre
+
+Partido proponente
+
+Profesión
+
+Años de experiencia
+
+Estado (postulado / evaluado / seleccionado)
+
+Score IA global
+
+Filtros:
+
+Partido político
+
+Experiencia
+
+Formación
+
+Evaluación IA mínima
+
+Evaluación humana
+
+🧑‍💼 Perfil Detallado del Candidato
+
+Objetivo: Vista 360° del candidato.
+
+Secciones:
+
+Datos personales y trayectoria
+
+Documentos
+
+CV original
+
+CV procesado por IA
+
+Análisis IA
+
+Resumen ejecutivo
+
+Fortalezas
+
+Debilidades
+
+Ajuste al cargo (%)
+
+Evaluaciones humanas
+
+Comentarios por rol
+
+Evaluación política
+
+Historial de postulaciones
+
+Trazabilidad completa
+
+📌 Esta vista debe inspirar confianza y transparencia.
+
+5️⃣ Módulo de Evaluaciones
+🧠 Evaluación IA
+
+Objetivo: Mostrar cómo piensa la IA (explicabilidad).
+
+Contenido:
+
+Matriz usada
+
+Puntaje por criterio
+
+Justificación textual
+
+Evidencia extraída del CV
+
+Fecha y versión del modelo
+
+✍️ Evaluación Humana
+
+Objetivo: Capturar juicio político/estratégico.
+
+Formulario estructurado:
+
+Alineamiento político
+
+Viabilidad estratégica
+
+Riesgos
+
+Comentarios libres
+
+Nivel de recomendación
+
+📌 Importante: no mezclar IA con opinión humana en esta vista.
+
+⚖️ Vista Unificada de Evaluación
+
+Objetivo: Apoyar la decisión final.
+
+Contenido comparativo:
+
+Score IA vs Score humano
+
+Gráfico radar de competencias
+
+Riesgos detectados
+
+Consenso / disenso
+
+Recomendación final
+
+6️⃣ Módulo de Análisis y Reportes
+📈 Análisis Estratégico
+
+Objetivo: Mirada país / gobierno.
+
+Vistas:
+
+Mapa de gobernabilidad
+
+Brechas por ministerio
+
+Cobertura por región
+
+Diversidad (género, formación, experiencia)
+
+📄 Reportes
+
+Objetivo: Exportación y rendición.
+
+Tipos:
+
+Reporte por cargo
+
+Reporte por partido
+
+Reporte de decisiones finales
+
+Reporte de trazabilidad
+
+Formatos:
+
+PDF
+
+Excel
+
+Dashboard compartible
+
+7️⃣ Módulo de Usuarios y Seguridad
+👥 Gestión de Usuarios
+
+Objetivo: Control institucional.
+
+Contenido:
+
+Usuarios activos
+
+Roles
+
+Partido asociado
+
+Permisos
+
+Historial de actividad
+
+🔎 Auditoría y Trazabilidad
+
+Objetivo: Transparencia total.
+
+Registro de:
+
+Cambios de evaluaciones
+
+Decisiones finales
+
+Accesos
+
+Modificaciones de datos
+
+8️⃣ Notificaciones y Flujos
+🔔 Centro de Notificaciones
+
+Objetivo: Mantener el proceso vivo.
+
+Evaluaciones pendientes
+
+Nuevos candidatos
+
+Cambios de estado
+
+Decisiones requeridas
+
+9️⃣ Vista de Decisión Final (Crítica)
+🏁 Asignación de Cargo
+
+Objetivo: Cerrar el proceso.
+
+Contenido:
+
+Resumen del cargo
+
+Candidato seleccionado
+
+Argumentación
+
+Fecha
+
+Responsable
+
+Estado final
+
+📌 Esta vista debe ser sobria, clara y auditada.
+
+🎨 Principios de Diseño Recomendados
+
+Diseño institucional moderno (no partidista)
+
+Colores neutros + semáforos
+
+Mucha jerarquía visual
+
+Explicabilidad de IA
+
+Trazabilidad visible
+
+Pensado para pantallas grandes (war room)
+
+Si quieres, en el siguiente paso puedo:
+
+Diseñarte el mapa de navegación
+
+Proponer wireframes por vista
+
+Diseñar el dashboard principal
+
+Aterrizar esto a React + Supabase
+
+Definir componentes reutilizables
+
+Dime cómo quieres avanzar.

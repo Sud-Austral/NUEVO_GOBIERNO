@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Transición Gubernamental</title>
+    
+    <!-- Google Fonts: Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js para visualizaciones -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- jsPDF para generación de reportes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- SheetJS para exportar a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* --- Variables de Diseño y Estilos Globales --- */
+        :root {
+            --primary-color: #003366; /* Azul Oscuro */
+            --secondary-color: #0055a4; /* Azul Claro */
+            --accent-color: #ffcc00; /* Amarillo/Dorado Chileno */
+            --light-gray: #f4f7f6;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --font-family: 'Roboto', sans-serif;
+            --critical-color: #d32f2f; /* Rojo para alertas */
+            --warning-color: #f57c00; /* Naranja para advertencias */
+            --success-color: #388e3c;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- Estilos para Login --- */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        .login-card {
+            background-color: var(--white);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-header {
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: var(--primary-color);
+            margin: 0 0 10px;
+        }
+
+        .login-header p {
+            color: var(--dark-gray);
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--dark-gray);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 85, 164, 0.2);
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .login-button:hover {
+            background-color: var(--primary-color);
+        }
+
+        .login-button:disabled {
+            background-color: var(--medium-gray);
+            cursor: not-allowed;
+        }
+
+        .login-error {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid var(--critical-color);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 15px;
+            color: var(--critical-color);
+            display: none;
+        }
+
+        .login-success {
+            background-color: rgba(56, 142, 60, 0.1);
+            border: 1px solid var(--success-color);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 15px;
+            color: var(--success-color);
+            display: none;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: var(--white);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* --- Estilos para la aplicación principal --- */
+        .app-container {
+            display: none;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .app-container.active {
+            display: flex;
+        }
+
+        /* --- Sidebar de Navegación --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--secondary-color);
+            padding-bottom: 20px;
+        }
+
+        .sidebar-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .nav-menu a {
+            display: block;
+            color: var(--white);
+            text-decoration: none;
+            padding: 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background-color: var(--secondary-color);
+        }
+
+        /* --- Contenido Principal --- */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            background-color: var(--white);
+            padding: 15px 30px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logout-button {
+            background-color: var(--critical-color);
+            color: var(--white);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .logout-button:hover {
+            background-color: #b71c1c;
+        }
+
+        .content-area {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none; /* Ocultar todo por defecto */
+        }
+
+        .tab-content.active {
+            display: block; /* Mostrar la pestaña activa */
+        }
+
+        /* --- Estilos del Dashboard --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .kpi-card h3 {
+            margin: 0 0 10px;
+            color: var(--secondary-color);
+        }
+
+        .kpi-card .number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .chart-container {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .chart-container h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 10px;
+        }
+
+        /* --- NUEVAS CLASES PARA CONTROLAR LA ALTURA DE LOS GRÁFICOS DIRECTAMENTE EN EL CANVAS --- */
+        .canvas-small {
+            height: 220px !important; /* Altura para el gráfico de barras horizontal */
+            width: 100% !important;
+        }
+        .canvas-medium {
+            height: 300px !important; /* Altura para el gráfico de barras apiladas */
+            width: 100% !important;
+        }
+
+        /* --- Estilos de Búsqueda y Candidatos --- */
+        .search-filters {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-filters input, .search-filters select {
+            padding: 10px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            font-family: var(--font-family);
+        }
+        .search-filters button {
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        .search-filters button:hover {
+            background-color: var(--primary-color);
+        }
+
+        .candidates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .candidate-card {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .candidate-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        .candidate-card-header {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            padding: 15px;
+        }
+        .candidate-card-body {
+            padding: 15px;
+        }
+        .candidate-name {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin: 0;
+        }
+        .candidate-party {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        .candidate-details {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        .candidate-details span {
+            text-align: center;
+        }
+        .candidate-details .label {
+            display: block;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .candidate-details .value {
+            color: var(--dark-gray);
+        }
+
+        /* --- Modal para Detalle del Candidato --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: var(--white);
+            margin: 5% auto;
+            padding: 30px;
+            border: none;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: var(--dark-gray);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-header {
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .evaluation-section {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 8px;
+        }
+        .evaluation-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        .evaluation-item {
+            background-color: var(--light-gray);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .evaluation-item .author {
+            font-weight: 500;
+            color: var(--secondary-color);
+        }
+        .evaluation-item .date {
+            font-size: 0.8em;
+            color: #777;
+            float: right;
+        }
+        .ai-score {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--accent-color);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        /* --- ESTILOS PARA LAS NUEVAS SECCIONES --- */
+
+        /* Estilos para Análisis de Cargos */
+        .analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .analysis-table th, .analysis-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        .analysis-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+        .analysis-table tr.critical {
+            background-color: rgba(211, 47, 47, 0.1); /* Fondo rojo claro */
+        }
+        .analysis-table tr.critical td {
+            font-weight: 500;
+        }
+        .analysis-table tr.warning {
+            background-color: rgba(245, 124, 0, 0.1); /* Fondo naranja claro */
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+            color: var(--white);
+        }
+        .badge.critical { background-color: var(--critical-color); }
+        .badge.warning { background-color: var(--warning-color); }
+        .badge.success { background-color: var(--success-color); }
+
+        /* Estilos para carga de datos */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.2em;
+            color: var(--secondary-color);
+        }
+        .error-message {
+            background-color: rgba(211, 47, 47, 0.1);
+            border: 1px solid var(--critical-color);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            color: var(--critical-color);
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+        }
+
+        .detail-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--medium-gray);
+            padding-bottom: 10px;
+        }
+
+        .application-item, .document-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: var(--white);
+            border-radius: 5px;
+        }
+
+        .evaluation-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        /* Skeleton loading styles */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-card {
+            height: 200px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* Pagination styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            background-color: var(--white);
+            border: 1px solid var(--medium-gray);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border-color: var(--secondary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Connection status indicator */
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: var(--white);
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+        }
+
+        .connection-status.online {
+            background-color: var(--success-color);
+        }
+
+        .connection-status.offline {
+            background-color: var(--critical-color);
+        }
+
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: var(--white);
+            font-weight: 500;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background-color: var(--success-color);
+        }
+
+        .toast.error {
+            background-color: var(--critical-color);
+        }
+
+        .toast.warning {
+            background-color: var(--warning-color);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor de Login -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Plataforma de Transición</h1>
+                <p>Gobierno 2026 - Inicio de Sesión</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Correo Electrónico</label>
+                    <input type="email" id="email" name="email" required placeholder="usuario@ejemplo.cl">
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" name="password" required placeholder="Ingrese su contraseña">
+                </div>
+                <button type="submit" class="login-button" id="loginButton">
+                    Iniciar Sesión
+                </button>
+                <div class="login-error" id="loginError">
+                    Credenciales incorrectas. Por favor, intente nuevamente.
+                </div>
+                <div class="login-success" id="loginSuccess">
+                    Inicio de sesión exitoso. Redirigiendo...
+                </div>
+            </form>
+            <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
+                Para demostración, use: admin@gobierno.cl / admin123
+            </p>
+        </div>
+    </div>
+
+    <!-- Contenedor de la Aplicación Principal -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar de Navegación -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Plataforma de Transición</h1>
+                <p>Gobierno 2026</p>
+            </div>
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-link active" onclick="showTab(event, 'dashboard')">📊 Dashboard</a>
+                <a href="#candidates" class="nav-link" onclick="showTab(event, 'candidates')">👥 Búsqueda de Candidatos</a>
+                <a href="#analysis" class="nav-link" onclick="showTab(event, 'analysis')">📈 Análisis de Cargos</a>
+            </nav>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <div class="top-bar">
+                <h2>Panel de Control</h2>
+                <div class="user-info">
+                    <span id="userEmail">usuario@gobierno.cl</span>
+                    <button class="logout-button" onclick="logout()">Cerrar Sesión</button>
+                </div>
+            </div>
+            
+            <div class="content-area">
+
+                <!-- PESTAÑA: DASHBOARD -->
+                <div id="dashboard" class="tab-content active">
+                    <div class="dashboard-grid">
+                        <div class="kpi-card">
+                            <h3>Total Candidatos</h3>
+                            <div class="number" id="totalCandidates">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Cargos por Definir</h3>
+                            <div class="number" id="pendingPositions">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Preseleccionados</h3>
+                            <div class="number" id="preselectedCandidates">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h3>Participación Partidos</h3>
+                            <div class="number" id="partiesCount">-</div>
+                        </div>
+                    </div>
+
+                    <!-- GRÁFICO 1: BARRAS HORIZONTALES CON CLASE EN EL CANVAS -->
+                    <div class="chart-container">
+                        <h2>Distribución de Cargos por Partido Político</h2>
+                        <canvas id="governanceChart" class="canvas-small"></canvas>
+                    </div>
+
+                    <!-- GRÁFICO 2: BARRAS APILADAS CON CLASE EN EL CANVAS -->
+                    <div class="chart-container">
+                        <h2>Progreso de Asignación por Nivel Jerárquico</h2>
+                        <canvas id="progressChart" class="canvas-medium"></canvas>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: BÚSQUEDA DE CANDIDATOS -->
+                <div id="candidates" class="tab-content">
+                    <div class="search-filters">
+                        <input type="text" id="searchInput" placeholder="Buscar por nombre o RUT..." style="flex-grow: 1;">
+                        <select id="partyFilter">
+                            <option value="">Todos los Partidos</option>
+                        </select>
+                        <select id="levelFilter">
+                            <option value="">Todos los Niveles</option>
+                            <option value="Ministro">Ministro</option>
+                            <option value="Subsecretario">Subsecretario</option>
+                            <option value="Seremi">Seremi</option>
+                        </select>
+                        <button onclick="applyFilters()">Aplicar Filtros</button>
+                    </div>
+
+                    <div id="candidatesLoading" class="loading">Cargando candidatos...</div>
+                    <div class="candidates-grid" id="candidatesGrid" style="display: none;">
+                        <!-- Las tarjetas de candidatos se generarán dinámicamente -->
+                    </div>
+                    <div class="pagination" id="candidatesPagination" style="display: none;">
+                        <!-- Paginación se generará dinámicamente -->
+                    </div>
+                    <div id="candidatesError" class="error-message" style="display: none;">
+                        Error al cargar los candidatos. Por favor, intente nuevamente.
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: ANÁLISIS DE CARGOS -->
+                <div id="analysis" class="tab-content">
+                    <div class="search-filters">
+                        <select id="ministryFilter">
+                            <option value="">Todos los Ministerios</option>
+                        </select>
+                        <select id="regionFilter">
+                            <option value="">Todas las Regiones</option>
+                        </select>
+                        <button onclick="updateAnalysis()">Actualizar Análisis</button>
+                    </div>
+
+                    <div class="chart-container">
+                        <h2>🚨 Cargos Críticos: Brechas de Talento</h2>
+                        <p>Identificación de cargos con bajo número de postulantes o con baja experticia promedio.</p>
+                        <div id="analysisLoading" class="loading">Cargando análisis...</div>
+                        <table class="analysis-table" id="analysisTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>Cargo</th>
+                                    <th>Nivel</th>
+                                    <th>Postulantes</th>
+                                    <th>Puntaje Promedio IA</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analysisTableBody">
+                                <!-- Las filas se generarán dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="chart-container">
+                        <h2>📊 Análisis de Competencias</h2>
+                        <p>Fortalezas y debilidades promedio de los postulantes para este cargo.</p>
+                        <canvas id="competencyRadarChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Detalle del Candidato -->
+    <div id="candidateModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modal-body">
+                <!-- El contenido se inyectará dinámicamente con JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status Indicator -->
+    <div id="connectionStatus" class="connection-status">
+        <span id="connectionStatusText">Conectado</span>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+        
+        // Inicializar cliente de Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Variables globales para las instancias de los gráficos
+        let governanceChartInstance = null;
+        let progressChartInstance = null;
+        let competencyRadarChartInstance = null;
+        
+        // Sistema de gestión de estado centralizado
+        const AppState = {
+            // Datos
+            candidates: [],
+            parties: [],
+            positions: [],
+            applications: [],
+            evaluations: [],
+            
+            // Estado de la aplicación
+            currentUser: null,
+            currentTab: 'dashboard',
+            
+            // Configuración de paginación
+            pagination: {
+                candidates: {
+                    page: 1,
+                    pageSize: 12,
+                    totalPages: 0,
+                    totalItems: 0
+                }
+            },
+            
+            // Configuración de filtros
+            filters: {
+                candidates: {
+                    searchTerm: '',
+                    partyId: '',
+                    level: ''
+                },
+                analysis: {
+                    ministry: '',
+                    region: ''
+                }
+            },
+            
+            // Cache
+            cache: {
+                candidates: { data: null, timestamp: null, TTL: 300000 }, // 5 minutos
+                parties: { data: null, timestamp: null, TTL: 600000 },     // 10 minutos
+                positions: { data: null, timestamp: null, TTL: 600000 },  // 10 minutos
+                applications: { data: null, timestamp: null, TTL: 300000 }, // 5 minutos
+                evaluations: { data: null, timestamp: null, TTL: 300000 }   // 5 minutos
+            },
+            
+            // Métodos para obtener y establecer datos
+            getCandidates: function() { return this.candidates; },
+            setCandidates: function(data) { this.candidates = data; },
+            
+            getParties: function() { return this.parties; },
+            setParties: function(data) { this.parties = data; },
+            
+            getPositions: function() { return this.positions; },
+            setPositions: function(data) { this.positions = data; },
+            
+            getApplications: function() { return this.applications; },
+            setApplications: function(data) { this.applications = data; },
+            
+            getEvaluations: function() { return this.evaluations; },
+            setEvaluations: function(data) { this.evaluations = data; },
+            
+            getCurrentUser: function() { return this.currentUser; },
+            setCurrentUser: function(user) { this.currentUser = user; },
+            
+            getCurrentTab: function() { return this.currentTab; },
+            setCurrentTab: function(tab) { this.currentTab = tab; },
+            
+            // Métodos para verificar si el cache es válido
+            isCacheValid: function(cacheKey) {
+                const cache = this.cache[cacheKey];
+                if (!cache.data || !cache.timestamp) return false;
+                return (Date.now() - cache.timestamp) < cache.TTL;
+            },
+            
+            // Métodos para actualizar el cache
+            updateCache: function(cacheKey, data) {
+                this.cache[cacheKey] = {
+                    data: data,
+                    timestamp: Date.now(),
+                    TTL: this.cache[cacheKey].TTL
+                };
+            },
+            
+            // Método para obtener datos del cache o cargarlos si es necesario
+            async getDataWithCache(cacheKey, loadFunction) {
+                if (this.isCacheValid(cacheKey)) {
+                    console.log(`Usando datos cacheados para ${cacheKey}`);
+                    return this.cache[cacheKey].data;
+                } else {
+                    console.log(`Cargando nuevos datos para ${cacheKey}`);
+                    const data = await loadFunction();
+                    this.updateCache(cacheKey, data);
+                    return data;
+                }
+            }
+        };
+
+        // Variables para debounce
+        let searchTimeout = null;
+        
+        // Variables para manejo de conexión
+        let isOnline = navigator.onLine;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
+
+        // --- Funciones de Utilidad ---
+        
+        // Función para validar datos
+        function validateData(data, type) {
+            if (!data) return null;
+            
+            switch(type) {
+                case 'number':
+                    return isNaN(data) ? 0 : parseFloat(data);
+                case 'string':
+                    return typeof data === 'string' ? data : String(data);
+                case 'array':
+                    return Array.isArray(data) ? data : [];
+                case 'object':
+                    return typeof data === 'object' && data !== null ? data : {};
+                default:
+                    return data;
+            }
+        }
+        
+        // Función para mostrar notificaciones toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Función para manejar errores de forma centralizada
+        function handleError(error, context = 'general') {
+            console.error(`Error en ${context}:`, error);
+            
+            // Mostrar notificación de error
+            showToast(`Error: ${error.message || 'Ha ocurrido un error inesperado'}`, 'error');
+            
+            // Actualizar indicador de conexión si es un error de red
+            if (error.message && error.message.includes('fetch')) {
+                updateConnectionStatus(false);
+            }
+        }
+        
+        // Función para reintentar operaciones con exponential backoff
+        async function fetchWithRetry(fn, retries = MAX_RETRIES) {
+            for(let i = 0; i < retries; i++) {
+                try {
+                    return await fn();
+                } catch(e) {
+                    console.error(`Intento ${i+1} fallido:`, e);
+                    if(i === retries-1) throw e;
+                    
+                    // Exponential backoff: esperar 1s, 2s, 4s, etc.
+                    const delay = 1000 * Math.pow(2, i);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        // Función para actualizar el estado de la conexión
+        function updateConnectionStatus(online) {
+            isOnline = online;
+            const statusElement = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionStatusText');
+            
+            if (online) {
+                statusElement.className = 'connection-status online';
+                statusText.textContent = 'Conectado';
+                retryCount = 0;
+            } else {
+                statusElement.className = 'connection-status offline';
+                statusText.textContent = 'Desconectado';
+            }
+            
+            statusElement.style.display = 'block';
+            
+            // Ocultar el indicador después de 3 segundos
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Función para verificar la conexión
+        async function checkConnection() {
+            try {
+                const { data, error } = await supabase.from('partidos_politicos').select('count', { count: 'exact', head: true });
+                if (error) throw error;
+                updateConnectionStatus(true);
+                return true;
+            } catch (error) {
+                updateConnectionStatus(false);
+                return false;
+            }
+        }
+        
+        // Función para aplicar debounce a una función
+        function debounce(func, wait) {
+            return function(...args) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // --- Funciones de Autenticación ---
+        
+        // Verificar si hay una sesión activa al cargar la página
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Configurar listeners para eventos de conexión
+            window.addEventListener('online', () => updateConnectionStatus(true));
+            window.addEventListener('offline', () => updateConnectionStatus(false));
+            
+            // Verificar conexión inicial
+            await checkConnection();
+            
+            // Verificar si hay una sesión activa
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (session) {
+                AppState.setCurrentUser(session.user);
+                showApp();
+            } else {
+                showLogin();
+            }
+        });
+
+        // Mostrar pantalla de login
+        function showLogin() {
+            document.getElementById('loginContainer').style.display = 'flex';
+            document.getElementById('appContainer').classList.remove('active');
+        }
+
+        // Mostrar aplicación principal
+        function showApp() {
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('appContainer').classList.add('active');
+            
+            // Actualizar información del usuario
+            const user = AppState.getCurrentUser();
+            if (user) {
+                document.getElementById('userEmail').textContent = user.email;
+            } else {
+                document.getElementById('userEmail').textContent = 'Usuario Demo';
+            }
+            
+            // Cargar datos iniciales
+            loadInitialData();
+        }
+
+        // Manejar el formulario de login
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginButton = document.getElementById('loginButton');
+            const loginError = document.getElementById('loginError');
+            const loginSuccess = document.getElementById('loginSuccess');
+            
+            // Mostrar estado de carga
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="loading-spinner"></span>Iniciando sesión...';
+            loginError.style.display = 'none';
+            loginSuccess.style.display = 'none';
+            
+            try {
+                // Verificar conexión antes de intentar login
+                const isConnected = await checkConnection();
+                if (!isConnected) {
+                    throw new Error('No hay conexión a internet. Por favor, verifique su conexión e intente nuevamente.');
+                }
+                
+                // Intentar login con Supabase
+                const { data, error } = await fetchWithRetry(async () => {
+                    return await supabase.auth.signInWithPassword({
+                        email: email,
+                        password: password
+                    });
+                });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                AppState.setCurrentUser(data.user);
+                loginSuccess.style.display = 'block';
+                
+                // Redirigir a la aplicación después de un breve retraso
+                setTimeout(() => {
+                    showApp();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error de login:', error);
+                handleError(error, 'login');
+                loginError.style.display = 'block';
+                loginButton.disabled = false;
+                loginButton.textContent = 'Iniciar Sesión';
+            }
+        });
+
+        // Función de logout
+        async function logout() {
+            try {
+                // Cerrar sesión con Supabase
+                const { error } = await supabase.auth.signOut();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                // Limpiar estado de la aplicación
+                AppState.setCurrentUser(null);
+                
+                // Redirigir al login
+                showLogin();
+                
+                // Resetear formulario de login
+                document.getElementById('loginForm').reset();
+                document.getElementById('loginError').style.display = 'none';
+                document.getElementById('loginSuccess').style.display = 'none';
+                document.getElementById('loginButton').disabled = false;
+                document.getElementById('loginButton').textContent = 'Iniciar Sesión';
+                
+                showToast('Sesión cerrada correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al cerrar sesión:', error);
+                handleError(error, 'logout');
+            }
+        }
+
+        // --- Lógica de Pestañas y Gráficos ---
+        function showTab(event, tabName) {
+            var i, tabcontent, navlinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            navlinks = document.getElementsByClassName("nav-link");
+            for (i = 0; i < navlinks.length; i++) {
+                navlinks[i].classList.remove("active");
+            }
+
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+            
+            // Actualizar estado
+            AppState.setCurrentTab(tabName);
+
+            // Inicializar o redibujar gráficos según la pestaña activa
+            if (tabName === 'dashboard') {
+                if (!governanceChartInstance) initializeDashboard();
+                else { 
+                    governanceChartInstance.resize(); 
+                    progressChartInstance.resize(); 
+                }
+            } else if (tabName === 'candidates') {
+                loadCandidates(); // Siempre cargar candidatos al cambiar a esta pestaña
+            } else if (tabName === 'analysis') {
+                if (!competencyRadarChartInstance) initializeAnalysis();
+                else competencyRadarChartInstance.resize();
+            }
+        }
+
+        // Función para cargar datos iniciales
+        async function loadInitialData() {
+            try {
+                console.log('Cargando datos iniciales...');
+                
+                // Verificar conexión antes de cargar datos
+                const isConnected = await checkConnection();
+                if (!isConnected) {
+                    throw new Error('No hay conexión a internet. Por favor, verifique su conexión e intente nuevamente.');
+                }
+                
+                // Cargar partidos políticos
+                console.log('Cargando partidos...');
+                const parties = await AppState.getDataWithCache('parties', async () => {
+                    const { data, error } = await fetchWithRetry(async () => {
+                        return await supabase
+                            .from('partidos_politicos')
+                            .select('*');
+                    });
+                    
+                    if (error) throw error;
+                    return data;
+                });
+                
+                AppState.setParties(parties);
+                console.log('Partidos cargados:', parties.length);
+                
+                // Cargar candidatos
+                console.log('Cargando candidatos...');
+                const candidates = await AppState.getDataWithCache('candidates', async () => {
+                    const { data, error } = await fetchWithRetry(async () => {
+                        return await supabase
+                            .from('candidatos')
+                            .select('*');
+                    });
+                    
+                    if (error) throw error;
+                    return data;
+                });
+                
+                AppState.setCandidates(candidates);
+                console.log('Candidatos cargados:', candidates.length);
+                
+                // Cargar cargos
+                console.log('Cargando cargos...');
+                const positions = await AppState.getDataWithCache('positions', async () => {
+                    const { data, error } = await fetchWithRetry(async () => {
+                        return await supabase
+                            .from('cargos')
+                            .select('*');
+                    });
+                    
+                    if (error) throw error;
+                    return data;
+                });
+                
+                AppState.setPositions(positions);
+                console.log('Cargos cargados:', positions.length);
+                
+                // Cargar postulaciones
+                console.log('Cargando postulaciones...');
+                const applications = await AppState.getDataWithCache('applications', async () => {
+                    const { data, error } = await fetchWithRetry(async () => {
+                        return await supabase
+                            .from('postulaciones')
+                            .select('*');
+                    });
+                    
+                    if (error) throw error;
+                    return data;
+                });
+                
+                AppState.setApplications(applications);
+                console.log('Postulaciones cargadas:', applications.length);
+                
+                // Cargar evaluaciones
+                console.log('Cargando evaluaciones...');
+                const evaluations = await AppState.getDataWithCache('evaluations', async () => {
+                    const { data, error } = await fetchWithRetry(async () => {
+                        return await supabase
+                            .from('evaluaciones')
+                            .select('*');
+                    });
+                    
+                    if (error) throw error;
+                    return data;
+                });
+                
+                AppState.setEvaluations(evaluations);
+                console.log('Evaluaciones cargadas:', evaluations.length);
+                
+                // Inicializar dashboard
+                initializeDashboard();
+                
+                // Actualizar filtros
+                updateFilters();
+                
+            } catch (error) {
+                console.error('Error al cargar datos iniciales:', error);
+                handleError(error, 'loadInitialData');
+                showError('dashboard', 'Error al cargar los datos. Por favor, recargue la página.');
+            }
+        }
+
+        // Función para inicializar el dashboard
+        function initializeDashboard() {
+            console.log('Inicializando dashboard...');
+
+            const candidates = AppState.getCandidates() || [];
+            const positions = AppState.getPositions() || [];
+            const parties = AppState.getParties() || [];
+
+            // KPI: Total candidatos
+            document.getElementById('totalCandidates').textContent =
+                candidates.length;
+
+            // KPI: Cargos por definir
+            const pendingPositions = positions.filter(
+                p => p.estado_cargo === 'por definir'
+            ).length;
+
+            document.getElementById('pendingPositions').textContent =
+                pendingPositions;
+
+            // KPI: Preseleccionados (temporal, claramente marcado)
+            const preselectedCount = Math.round(candidates.length * 0.3);
+            document.getElementById('preselectedCandidates').textContent =
+                preselectedCount;
+
+            // KPI: Participación partidos
+            document.getElementById('partiesCount').textContent =
+                `${parties.length} / ${parties.length}`;
+
+            initializeCharts();
+        }
+
+        function initializeCharts() {
+            console.log('Inicializando gráficos...');
+
+            if (governanceChartInstance) governanceChartInstance.destroy();
+            if (progressChartInstance) progressChartInstance.destroy();
+
+            /* ===============================
+            GRÁFICO 1: Candidatos por partido
+            =============================== */
+
+            const governanceCtx =
+                document.getElementById('governanceChart').getContext('2d');
+
+            const parties = AppState.getParties() || [];
+            const candidates = AppState.getCandidates() || [];
+
+            const partyLabels = parties.map(p => p.nombre_partido);
+            const partyData = parties.map(
+                p => candidates.filter(c => c.id_partido === p.id_partido).length
+            );
+
+            governanceChartInstance = new Chart(governanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: partyLabels,
+                    datasets: [{
+                        data: partyData,
+                        label: 'Candidatos',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true }
+                    }
+                }
+            });
+
+            /* =====================================
+            GRÁFICO 2: Progreso por nivel jerárquico
+            ===================================== */
+
+            const progressCtx =
+                document.getElementById('progressChart').getContext('2d');
+
+            const positions = AppState.getPositions() || [];
+            const applications = AppState.getApplications() || [];
+
+            // Pre-indexar postulaciones por cargo (MUY importante)
+            const applicationsByCargo = {};
+            applications.forEach(a => {
+                applicationsByCargo[a.id_cargo] = true;
+            });
+
+            const levels = {};
+
+            positions.forEach(pos => {
+                const level = pos.nivel_jerarquico || 'Sin nivel';
+
+                if (!levels[level]) {
+                    levels[level] = { total: 0, assigned: 0 };
+                }
+
+                levels[level].total++;
+
+                if (
+                    pos.estado_cargo !== 'por definir' ||
+                    applicationsByCargo[pos.id_cargo]
+                ) {
+                    levels[level].assigned++;
+                }
+            });
+
+            const labels = Object.keys(levels);
+            const assigned = labels.map(l => levels[l].assigned);
+            const pending = labels.map(l => levels[l].total - levels[l].assigned);
+
+            progressChartInstance = new Chart(progressCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Asignados', data: assigned },
+                        { label: 'Por asignar', data: pending }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        async function loadCandidates() {
+            const loading = document.getElementById('candidatesLoading');
+            const grid = document.getElementById('candidatesGrid');
+            const paginationEl = document.getElementById('candidatesPagination');
+            const errorEl = document.getElementById('candidatesError');
+
+            try {
+                loading.style.display = 'flex';
+                grid.style.display = 'none';
+                errorEl.style.display = 'none';
+
+                const filters = AppState.filters.candidates;
+                const pagination = AppState.pagination.candidates;
+
+                let query = supabase
+                    .from('candidatos')
+                    .select(`
+                        *,
+                        partidos_politicos(nombre_partido),
+                        postulaciones(
+                            postulacion_principal,
+                            cargos(nombre_cargo)
+                        )
+                    `, { count: 'exact' });
+
+                if (filters.partyId) {
+                    query = query.eq('id_partido', filters.partyId);
+                }
+
+                if (filters.searchTerm) {
+                    query = query.or(
+                        `nombres.ilike.%${filters.searchTerm}%,rut.ilike.%${filters.searchTerm}%`
+                    );
+                }
+
+                const from = (pagination.page - 1) * pagination.pageSize;
+                const to = from + pagination.pageSize - 1;
+                query = query.range(from, to);
+
+                const { data, count, error } = await query;
+                if (error) throw error;
+
+                pagination.totalItems = count;
+                pagination.totalPages = Math.ceil(count / pagination.pageSize);
+
+                grid.innerHTML = '';
+
+                data.forEach(candidate => {
+                    const mainApp =
+                        candidate.postulaciones?.find(p => p.postulacion_principal) ||
+                        candidate.postulaciones?.[0];
+
+                    const card = document.createElement('div');
+                    card.className = 'candidate-card';
+                    card.onclick = () => openModal(candidate.id_candidato);
+
+                    card.innerHTML = `
+                        <div class="candidate-card-header">
+                            <p class="candidate-party">
+                                ${candidate.partidos_politicos?.nombre_partido || 'Sin partido'}
+                            </p>
+                        </div>
+                        <div class="candidate-card-body">
+                            <h3 class="candidate-name">
+                                ${candidate.nombres} ${candidate.apellido_paterno}
+                            </h3>
+                            <div class="candidate-details">
+                                <span>
+                                    <span class="label">Postulación</span>
+                                    <span class="value">
+                                        ${mainApp?.cargos?.nombre_cargo || 'Sin asignar'}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                    `;
+
+                    grid.appendChild(card);
+                });
+
+                createPagination(pagination);
+
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
+                paginationEl.style.display = 'flex';
+
+            } catch (err) {
+                console.error(err);
+                loading.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.textContent = err.message;
+            }
+        }
+
+
+
+        // Función para crear controles de paginación
+        function createPagination(pagination) {
+            const paginationElement = document.getElementById('candidatesPagination');
+            paginationElement.innerHTML = '';
+            
+            // Botón anterior
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Anterior';
+            prevButton.disabled = pagination.page === 1;
+            prevButton.onclick = () => {
+                pagination.page--;
+                loadCandidates();
+            };
+            paginationElement.appendChild(prevButton);
+            
+            // Números de página
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, pagination.page - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.className = i === pagination.page ? 'active' : '';
+                pageButton.onclick = () => {
+                    pagination.page = i;
+                    loadCandidates();
+                };
+                paginationElement.appendChild(pageButton);
+            }
+            
+            // Botón siguiente
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Siguiente';
+            nextButton.disabled = pagination.page === pagination.totalPages;
+            nextButton.onclick = () => {
+                pagination.page++;
+                loadCandidates();
+            };
+            paginationElement.appendChild(nextButton);
+        }
+
+        // Función para actualizar filtros
+        function updateFilters() {
+            // Actualizar filtro de partidos
+            const partyFilter = document.getElementById('partyFilter');
+            partyFilter.innerHTML = '<option value="">Todos los Partidos</option>';
+            
+            const parties = AppState.getParties();
+            parties.forEach(party => {
+                const option = document.createElement('option');
+                option.value = party.id_partido;
+                option.textContent = party.nombre_partido;
+                partyFilter.appendChild(option);
+            });
+            
+            // Actualizar filtro de ministerios (para análisis)
+            const ministryFilter = document.getElementById('ministryFilter');
+            ministryFilter.innerHTML = '<option value="">Todos los Ministerios</option>';
+            
+            // Extraer ministerios únicos
+            const positions = AppState.getPositions();
+            const ministries = [...new Set(positions
+                .filter(p => p.ministerio_servicio)
+                .map(p => p.ministerio_servicio))];
+            
+            ministries.forEach(ministry => {
+                const option = document.createElement('option');
+                option.value = ministry;
+                option.textContent = ministry;
+                ministryFilter.appendChild(option);
+            });
+            
+            // Actualizar filtro de regiones (para análisis)
+            const regionFilter = document.getElementById('regionFilter');
+            regionFilter.innerHTML = '<option value="">Todas las Regiones</option>';
+            
+            // Extraer regiones únicas
+            const regions = [...new Set(positions
+                .filter(p => p.region)
+                .map(p => p.region))];
+            
+            regions.forEach(region => {
+                const option = document.createElement('option');
+                option.value = region;
+                option.textContent = region;
+                regionFilter.appendChild(option);
+            });
+        }
+
+        // Función para aplicar filtros en la sección de candidatos
+        const applyFilters = debounce(async function() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const partyId = document.getElementById('partyFilter').value;
+            const level = document.getElementById('levelFilter').value;
+            
+            console.log('Aplicando filtros:', { searchTerm, partyId, level });
+            
+            // Actualizar filtros en el estado
+            AppState.filters.candidates = {
+                searchTerm,
+                partyId,
+                level
+            };
+            
+            // Resetear paginación
+            AppState.pagination.candidates.page = 1;
+            
+            // Recargar candidatos con filtros
+            loadCandidates();
+        }, 300);
+
+        // Función para inicializar la sección de análisis
+        async function initializeAnalysis() {
+            const loadingElement = document.getElementById('analysisLoading');
+            const tableElement = document.getElementById('analysisTable');
+            
+            try {
+                loadingElement.style.display = 'flex';
+                tableElement.style.display = 'none';
+                
+                // Verificar conexión antes de cargar datos
+                const isConnected = await checkConnection();
+                if (!isConnected) {
+                    throw new Error('No hay conexión a internet. Por favor, verifique su conexión e intente nuevamente.');
+                }
+                
+                // Obtener filtros actuales
+                const filters = AppState.filters.analysis;
+                
+                // Obtener datos de cargos con conteo de postulaciones
+                const positions = AppState.getPositions();
+                const applications = AppState.getApplications();
+                const evaluations = AppState.getEvaluations();
+                
+                // Filtrar por ministerio y región si es necesario
+                let filteredPositions = positions;
+                if (filters.ministry) {
+                    filteredPositions = filteredPositions.filter(p => p.ministerio_servicio === filters.ministry);
+                }
+                if (filters.region) {
+                    filteredPositions = filteredPositions.filter(p => p.region === filters.region);
+                }
+                
+                // Procesar posiciones con conteo de postulaciones
+                const positionsWithApplications = filteredPositions.map(position => {
+                    // Obtener postulaciones para este cargo
+                    const positionApplications = applications.filter(a => a.id_cargo === position.id_cargo);
+                    
+                    // Obtener evaluaciones para estas postulaciones
+                    const applicationIds = positionApplications.map(a => a.id_postulacion);
+                    const positionEvaluations = evaluations.filter(e => applicationIds.includes(e.id_postulacion));
+                    
+                    // Calcular puntaje promedio
+                    const avgScore = positionEvaluations.length > 0 ?
+                        positionEvaluations.reduce((sum, e) => sum + parseFloat(validateData(e.puntaje_numerico, 'number') || 0), 0) / positionEvaluations.length : 0;
+                    
+                    return {
+                        ...position,
+                        applicationCount: positionApplications.length,
+                        avgScore: avgScore.toFixed(1)
+                    };
+                });
+                
+                // Ordenar por número de postulantes (ascendente) para identificar los críticos
+                positionsWithApplications.sort((a, b) => a.applicationCount - b.applicationCount);
+                
+                // Llenar tabla
+                const tableBody = document.getElementById('analysisTableBody');
+                tableBody.innerHTML = '';
+                
+                positionsWithApplications.slice(0, 10).forEach(position => {
+                    const row = document.createElement('tr');
+                    
+                    // Determinar estado según número de postulantes y puntaje
+                    let statusClass = '';
+                    let statusText = '';
+                    let statusBadge = '';
+                    
+                    if (position.applicationCount < 5) {
+                        statusClass = 'critical';
+                        statusText = 'Crítico';
+                        statusBadge = '<span class="badge critical">Crítico</span>';
+                    } else if (position.applicationCount < 10 || parseFloat(position.avgScore) < 70) {
+                        statusClass = 'warning';
+                        statusText = 'Preocupante';
+                        statusBadge = '<span class="badge warning">Preocupante</span>';
+                    } else {
+                        statusClass = '';
+                        statusText = 'Cubierto';
+                        statusBadge = '<span class="badge success">Cubierto</span>';
+                    }
+                    
+                    row.className = statusClass;
+                    row.innerHTML = `
+                        <td>${validateData(position.nombre_cargo, 'string')}</td>
+                        <td>${validateData(position.nivel_jerarquico, 'string')}</td>
+                        <td>${validateData(position.applicationCount, 'number')}</td>
+                        <td>${validateData(position.avgScore, 'string')}</td>
+                        <td>${statusBadge}</td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                loadingElement.style.display = 'none';
+                tableElement.style.display = 'table';
+                
+                // Inicializar gráfico de radar
+                initializeCompetencyRadarChart();
+                
+            } catch (error) {
+                console.error('Error al cargar análisis:', error);
+                handleError(error, 'initializeAnalysis');
+                loadingElement.textContent = 'Error al cargar el análisis. Por favor, intente nuevamente.';
+            }
+        }
+
+        // Función para inicializar el gráfico de radar de competencias
+        function initializeCompetencyRadarChart() {
+            // Destruir gráfico existente si ya está creado
+            if (competencyRadarChartInstance) {
+                competencyRadarChartInstance.destroy();
+            }
+            
+            const competencyCtx = document.getElementById('competencyRadarChart').getContext('2d');
+            
+            // Calcular datos reales de competencias a partir de las evaluaciones
+            const evaluations = AppState.getEvaluations();
+            
+            // Extraer competencias únicas de las evaluaciones
+            const competencies = {};
+            evaluations.forEach(eval => {
+                if (eval.datos_estructurados) {
+                    const evalCompetencies = eval.datos_estructurados;
+                    Object.keys(evalCompetencies).forEach(comp => {
+                        if (!competencies[comp]) {
+                            competencies[comp] = [];
+                        }
+                        competencies[comp].push(evalCompetencies[comp]);
+                    });
+                }
+            });
+            
+            // Calcular promedio para cada competencia
+            const competencyLabels = Object.keys(competencies);
+            const avgScores = competencyLabels.map(comp => {
+                const scores = competencies[comp];
+                return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+            });
+            
+            // Si no hay datos reales, usar datos de ejemplo
+            const hasRealData = competencyLabels.length > 0;
+            
+            competencyRadarChartInstance = new Chart(competencyCtx, {
+                type: 'radar',
+                data: {
+                    labels: hasRealData ? competencyLabels : ['Experiencia Pública', 'Liderazgo', 'Conocimiento Técnico', 'Gestión de Crisis', 'Negociación Política'],
+                    datasets: [{
+                        label: 'Puntaje Promedio Postulantes',
+                        data: hasRealData ? avgScores : [60, 85, 92, 45, 70],
+                        backgroundColor: 'rgba(0, 85, 164, 0.2)',
+                        borderColor: 'rgba(0, 85, 164, 1)',
+                        pointBackgroundColor: 'rgba(0, 85, 164, 1)',
+                    }, {
+                        label: 'Puntaje Ideal del Cargo',
+                        data: hasRealData ? avgScores.map(s => Math.min(s * 1.2, 100)) : [80, 90, 95, 80, 85],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // Función para actualizar el análisis según filtros
+        function updateAnalysis() {
+            // Obtener filtros seleccionados
+            const ministry = document.getElementById('ministryFilter').value;
+            const region = document.getElementById('regionFilter').value;
+            
+            // Actualizar filtros en el estado
+            AppState.filters.analysis = {
+                ministry,
+                region
+            };
+            
+            // Recargar análisis
+            initializeAnalysis();
+        }
+
+        // --- Lógica del Modal ---
+        async function openModal(candidateId) {
+            const modal = document.getElementById('candidateModal');
+            const modalBody = document.getElementById('modal-body');
+            
+            try {
+                // Limpiar contenido previo del modal
+                modalBody.innerHTML = '<div class="loading">Cargando detalles del candidato...</div>';
+                modal.style.display = 'block';
+                
+                // Verificar conexión antes de cargar datos
+                const isConnected = await checkConnection();
+                if (!isConnected) {
+                    throw new Error('No hay conexión a internet. Por favor, verifique su conexión e intente nuevamente.');
+                }
+                
+                // Obtener información detallada del candidato
+                const { data: candidate, error: candidateError } = await fetchWithRetry(async () => {
+                    return await supabase
+                        .from('candidatos')
+                        .select(`
+                            *,
+                            partidos_politicos(id_partido, nombre_partido, sigla)
+                        `)
+                        .eq('id_candidato', candidateId)
+                        .single();
+                });
+                
+                if (candidateError) throw candidateError;
+                
+                // Obtener postulaciones del candidato
+                const { data: applications, error: applicationsError } = await fetchWithRetry(async () => {
+                    return await supabase
+                        .from('postulaciones')
+                        .select(`
+                            *,
+                            cargos(id_cargo, nombre_cargo, descripcion_cargo, nivel_jerarquico, ambito, ministerio_servicio)
+                        `)
+                        .eq('id_candidato', candidateId);
+                });
+                
+                if (applicationsError) throw applicationsError;
+                
+                // Obtener evaluaciones de las postulaciones del candidato
+                const applicationIds = applications.map(a => a.id_postulacion);
+                let evaluations = [];
+                
+                if (applicationIds.length > 0) {
+                    const { data: evals, error: evaluationsError } = await fetchWithRetry(async () => {
+                        return await supabase
+                            .from('evaluaciones')
+                            .select(`
+                                *,
+                                usuarios(id_usuario, nombre_completo, rol)
+                            `)
+                            .in('id_postulacion', applicationIds)
+                            .order('fecha_evaluacion', { ascending: false });
+                    });
+                    
+                    if (evaluationsError) throw evaluationsError;
+                    evaluations = evals;
+                }
+                
+                // Obtener documentos del candidato
+                const { data: documents, error: documentsError } = await fetchWithRetry(async () => {
+                    return await supabase
+                        .from('documentos')
+                        .select('*')
+                        .eq('id_candidato', candidateId);
+                });
+
+                
+                if (documentsError) throw documentsError;
+                
+                // Construir contenido del modal
+                let modalContent = `
+                    <div class="modal-header">
+                        <h2>${validateData(candidate.nombres, 'string')} ${validateData(candidate.apellido_paterno, 'string')} ${validateData(candidate.apellido_materno, 'string')}</h2>
+                        <p>${candidate.partidos_politicos ? validateData(candidate.partidos_politicos.nombre_partido, 'string') : 'Sin partido'} (${candidate.partidos_politicos ? validateData(candidate.partidos_politicos.sigla, 'string') : ''})</p>
+                        <p>RUT: ${validateData(candidate.rut, 'string')}</p>
+                    </div>
+                    
+                    <div class="candidate-details">
+                        <div class="detail-section">
+                            <h3>Información de Contacto</h3>
+                            <p>Email: ${validateData(candidate.contacto_email, 'string') || 'No especificado'}</p>
+                            <p>Teléfono: ${validateData(candidate.contacto_telefono, 'string') || 'No especificado'}</p>
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>Postulaciones</h3>
+                `;
+                
+                applications.forEach(app => {
+                    const principal = app.postulacion_principal ? '<span class="badge success">Principal</span>' : '';
+                    modalContent += `
+                        <div class="application-item">
+                            <h4>${validateData(app.cargos.nombre_cargo, 'string')} ${principal}</h4>
+                            <p>${validateData(app.cargos.descripcion_cargo, 'string') || 'Sin descripción'}</p>
+                            <p>Nivel: ${validateData(app.cargos.nivel_jerarquico, 'string')} | Ámbito: ${validateData(app.cargos.ambito, 'string')}</p>
+                            ${app.cargos.ministerio_servicio ? `<p>Ministerio/Servicio: ${validateData(app.cargos.ministerio_servicio, 'string')}</p>` : ''}
+                        </div>
+                    `;
+                });
+                
+                modalContent += `
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>Documentos</h3>
+                `;
+                
+                if (documents.length > 0) {
+                    documents.forEach(doc => {
+                        modalContent += `
+                            <div class="document-item">
+                                <h4>${validateData(doc.tipo_documento, 'string')}: ${validateData(doc.nombre_archivo_original, 'string') || 'Sin nombre'}</h4>
+                                ${doc.texto_completo ? `<p>${validateData(doc.texto_completo, 'string').substring(0, 200)}...</p>` : '<p>Sin contenido de texto disponible</p>'}
+                            </div>
+                        `;
+                    });
+                } else {
+                    modalContent += '<p>No hay documentos disponibles para este candidato.</p>';
+                }
+                
+                modalContent += `
+                        </div>
+                        
+                        <div class="evaluation-section">
+                            <h3>Evaluaciones</h3>
+                `;
+                
+                if (evaluations.length > 0) {
+                    evaluations.forEach(eval => {
+                        const isAI = eval.tipo_evaluacion === 'ia';
+                        const scoreClass = isAI ? 'ai-score' : '';
+                        
+                        modalContent += `
+                            <div class="evaluation-item">
+                                <div class="evaluation-header">
+                                    <span class="author">${eval.usuarios ? validateData(eval.usuarios.nombre_completo, 'string') : 'Sistema'} (${validateData(eval.rol, 'string') || 'Sin rol'})</span>
+                                    <span class="date">${new Date(eval.fecha_evaluacion).toLocaleDateString()}</span>
+                                </div>
+                                <div class="${scoreClass}">Puntaje: ${validateData(eval.puntaje_numerico, 'number') || 'N/A'}</div>
+                                <p>${validateData(eval.texto_evaluacion, 'string') || 'Sin comentarios'}</p>
+                            </div>
+                        `;
+                    });
+                } else {
+                    modalContent += '<p>No hay evaluaciones disponibles para este candidato.</p>';
+                }
+                
+                modalContent += `
+                        </div>
+                    </div>
+                `;
+                
+                modalBody.innerHTML = modalContent;
+                
+            } catch (error) {
+                console.error('Error al cargar detalles del candidato:', error);
+                handleError(error, 'openModal');
+                modalBody.innerHTML = `
+                    <div class="error-message">
+                        Error al cargar los detalles del candidato: ${error.message}
+                    </div>
+                `;
+                modal.style.display = 'block';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('candidateModal').style.display = 'none';
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const modal = document.getElementById('candidateModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Función para mostrar errores
+        function showError(section, message) {
+            const sectionElement = document.getElementById(section);
+            const errorElement = document.createElement('div');
+            errorElement.className = 'error-message';
+            errorElement.textContent = message;
+            
+            sectionElement.appendChild(errorElement);
+        }
+    </script>
+</body>
+</html>

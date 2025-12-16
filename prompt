@@ -1,0 +1,71 @@
+Contexto del Proyecto
+Se requiere desarrollar una plataforma integral para gestionar el proceso de selección de aproximadamente 3,000 cargos en el estado chileno, como parte de la transición gubernamental que ocurrirá en marzo de 2026. La plataforma debe permitir el análisis de perfiles de candidatos propuestos por alrededor de 7 partidos políticos, evaluando tanto su experticia técnica como su compatibilidad política.
+
+Arquitectura del Sistema
+Base de Datos Relacional
+El sistema se basará en una base de datos relacional (PostgreSQL/Supabase) con las siguientes tablas principales:
+
+PartidosPoliticos: Información de los partidos políticos participantes
+Cargos: Detalles de los 3,000 puestos a ser llenados (niveles, ámbitos, estados)
+Candidatos: Perfil detallado de cada persona propuesta
+Documentos: Contenido completo de CVs y otros documentos de candidatos
+Postulaciones: Tabla intermedia que conecta candidatos con cargos
+Usuarios: Identificación de todos los usuarios del sistema (personeros, evaluadores, IA)
+MatricesEvaluacion: Criterios y parámetros para evaluación por cargo
+Evaluaciones: Resultados de evaluaciones tanto de IA como de personas
+Componentes de Inteligencia Artificial
+El sistema incorporará un modelo de IA para:
+
+Extraer y procesar información de los CVs de los candidatos
+Evaluar perfiles según matrices de parámetros predefinidas
+Generar puntuaciones objetivas basadas en experiencia y formación
+Identificar fortalezas y debilidades de los candidatos
+Interfaz de Usuario
+La plataforma contará con una interfaz web moderna e intuitiva que incluirá:
+
+Dashboard principal con indicadores clave y visualizaciones
+Sistema de búsqueda y filtrado avanzado de candidatos
+Vistas detalladas de perfiles con evaluaciones integradas
+Herramientas de análisis de cargos y reportes
+Sistema de notificaciones y flujos de trabajo automatizados
+Funcionalidades Clave
+Evaluación Híbrida
+El sistema combinará evaluaciones automatizadas de IA con evaluaciones humanas:
+
+Evaluación IA: Análisis objetivo basado en experiencia y formación
+Evaluación Humana: Opiniones políticas y estratégicas de personeros
+Vista Unificada: Presentación conjunta de ambas evaluaciones para toma de decisiones
+Análisis y Reportes
+La plataforma ofrecerá herramientas analíticas avanzadas:
+
+Mapa de gobernabilidad en tiempo real
+Análisis de brechas de talento
+Reportes de diversidad e inclusión
+Análisis de competencias por cargo
+Control de Acceso y Seguridad
+El sistema implementará:
+
+Control de acceso basado en roles (RBAC)
+Auditoría completa de acciones
+Almacenamiento seguro de documentos
+Trazabilidad total de cambios
+Flujo de Trabajo
+Ingreso de Candidatos: Los partidos políticos ingresan perfiles y documentos
+Procesamiento por IA: El sistema analiza automáticamente los CVs
+Evaluaciones Humanas: Personeros políticos añaden sus evaluaciones
+Análisis Comparativo: El sistema presenta vistas unificadas
+Toma de Decisiones: El equipo decisor final selecciona candidatos
+Asignación de Cargos: Registro final de decisiones y generación de reportes
+Consideraciones Técnicas
+Arquitectura en la Nube: Para escalabilidad y disponibilidad
+Diseño Responsivo: Accesible desde diversos dispositivos
+Integración con Servicios de Almacenamiento: Para gestión de documentos
+APIs para Futuras Integraciones: Con otros sistemas gubernamentales
+Objetivos del Sistema
+Centralizar y organizar información de candidatos y cargos
+Estandarizar procesos de evaluación mediante IA
+Facilitar la colaboración entre diferentes equipos políticos
+Proporcionar análisis objetivos para la toma de decisiones
+Asegurar transparencia y trazabilidad en el proceso de selección
+Optimizar el tiempo de los equipos de transición gubernamental
+Este sistema representa una solución tecnológica integral para uno de los procesos más críticos en la transición democrática, combinando la eficiencia de la automatización con el juicio humano necesario para decisiones políticas estratégicas.
