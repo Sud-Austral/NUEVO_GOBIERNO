@@ -449,6 +449,36 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        
+        /* Estilos para badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        
+        .badge-warning {
+            background-color: rgba(245, 124, 0, 0.2);
+            color: var(--warning-color);
+        }
+        
+        .badge-info {
+            background-color: rgba(33, 150, 243, 0.2);
+            color: #2196F3;
+        }
+        
+        .badge-success {
+            background-color: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+        
+        .badge-danger {
+            background-color: rgba(244, 67, 54, 0.2);
+            color: #F44336;
+        }
     </style>
 </head>
 <body>
@@ -748,18 +778,37 @@
     </div>
 
     <script>
-        // Configuración de Supabase
-        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+        // ======== SINGLETON PARA CONEXIÓN A SUPABASE ========
+        const SupabaseService = (function() {
+            let instance;
+            
+            function createInstance() {
+                const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+                
+                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+            
+            return {
+                getInstance: function() {
+                    if (!instance) {
+                        instance = createInstance();
+                    }
+                    return instance;
+                }
+            };
+        })();
         
-        // Inicializar cliente de Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Obtener instancia única de Supabase
+        const supabase = SupabaseService.getInstance();
         
-        // Variables globales para las instancias de los gráficos
+        // ======== VARIABLES GLOBALES ========
+        
+        // Variables para las instancias de los gráficos
         let partyChartInstance = null;
         let statusChartInstance = null;
         
-        // Variables globales para el estado de la aplicación
+        // Variables para el estado de la aplicación
         let currentTab = 'dashboard';
         let applications = [];
         let candidates = [];
@@ -808,7 +857,7 @@
             }
         };
         
-        // --- Funciones de Utilidad ---
+        // ======== FUNCIONES DE UTILIDAD ========
         
         // Función para mostrar notificaciones
         function showMessage(message, type = 'success') {
@@ -843,7 +892,8 @@
             }
         }
         
-        // --- Lógica de Pestañas y Gráficos ---
+        // ======== LÓGICA DE PESTAÑAS Y GRÁFICOS ========
+        
         function showTab(event, tabName) {
             var i, tabcontent, navlinks;
             tabcontent = document.getElementsByClassName("tab-content");
@@ -1062,7 +1112,7 @@
             });
         }
         
-        // --- Funciones para el Mantenedor de Postulaciones ---
+        // ======== FUNCIONES PARA EL MANTENEDOR DE POSTULACIONES ========
         
         async function loadApplications() {
             const loading = document.getElementById('applicationsLoading');
@@ -1529,7 +1579,7 @@
             loadPositions();
         }
         
-        // --- Funciones para el CRUD de Postulaciones ---
+        // ======== FUNCIONES PARA EL CRUD DE POSTULACIONES ========
         
         function openAddModal() {
             currentApplicationId = null;
@@ -1720,7 +1770,7 @@
             }
         });
         
-        // --- Funciones para el CRUD de Cargos ---
+        // ======== FUNCIONES PARA EL CRUD DE CARGOS ========
         
         function openAddPositionModal() {
             currentPositionId = null;
@@ -1892,7 +1942,7 @@
             }
         });
         
-        // --- Funciones para ver/editar candidatos (solo visualización) ---
+        // ======== FUNCIONES PARA VER/EDITAR CANDIDATOS (SOLO VISUALIZACIÓN) ========
         
         async function viewCandidate(id) {
             try {
@@ -1964,7 +2014,7 @@
             showMessage('Función de edición de candidatos no implementada en esta demostración', 'warning');
         }
         
-        // --- Funciones para manejo de modales ---
+        // ======== FUNCIONES PARA MANEJO DE MODALES ========
         
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
@@ -1976,6 +2026,8 @@
                 event.target.style.display = 'none';
             }
         }
+        
+        // ======== INICIALIZACIÓN ========
         
         // Cargar datos iniciales al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
