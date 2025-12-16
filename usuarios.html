@@ -387,6 +387,24 @@
         .search-button:hover {
             background-color: var(--primary-color);
         }
+
+        /* --- Estilos para badges --- */
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .badge.success {
+            background-color: rgba(56, 142, 60, 0.2);
+            color: var(--success-color);
+        }
+
+        .badge.critical {
+            background-color: rgba(211, 47, 47, 0.2);
+            color: var(--critical-color);
+        }
     </style>
 </head>
 <body>
@@ -614,12 +632,28 @@
     </div>
 
     <script>
-        // Configuración de Supabase
-        const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
-        
-        // Inicializar cliente de Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Singleton para el cliente de Supabase
+        const SupabaseClient = (function() {
+            let instance = null;
+            
+            function createInstance() {
+                const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
+                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+            
+            return {
+                getInstance: function() {
+                    if (!instance) {
+                        instance = createInstance();
+                    }
+                    return instance;
+                }
+            };
+        })();
+
+        // Obtener la instancia del cliente de Supabase
+        const supabase = SupabaseClient.getInstance();
         
         // Variables globales
         let currentTab = 'users';
