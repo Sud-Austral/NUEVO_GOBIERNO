@@ -951,8 +951,12 @@
         const SUPABASE_URL = 'https://lnwjlgtjctdzxmpbaujo.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxud2psZ3RqY3RkenhtcGJhdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDcwOTcsImV4cCI6MjA4MTQ4MzA5N30.9LgwkOytwdir2S7sXwh89c2HTX6wfQyVW9UVo9wuT7c';
         
-        // Inicializar cliente de Supabase
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Inicializar cliente de Supabase - SOLUCIÓN: Usar un patrón singleton para evitar declaraciones múltiples
+        let supabaseClient;
+        if (!window.supabaseClient) {
+            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        supabaseClient = window.supabaseClient;
         
         // Variables globales para las instancias de los gráficos
         let governanceChartInstance = null;
